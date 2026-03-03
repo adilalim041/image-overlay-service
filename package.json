@@ -1,15 +1,15 @@
 {
   "name": "image-overlay-service",
-  "version": "1.0.0",
-  "description": "Image overlay service for AI news Telegram bot",
+  "version": "2.0.0",
+  "description": "Image overlay service with cyrillic support",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
+    "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "sharp": "^0.33.2"
+    "sharp": "^0.33.2",
+    "opentype.js": "^1.3.4"
   },
   "engines": {
     "node": ">=18.0.0"

@@ -2,15 +2,23 @@ const express = require('express');
 const sharp = require('sharp');
 const https = require('https');
 const http = require('http');
+const opentype = require('opentype.js');
+const path = require('path');
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
-// Скачиваем картинку по URL
+// Загружаем шрифты с кириллицей
+const fontBold = opentype.loadSync(path.join(__dirname, 'fonts/bold.ttf'));
+const fontRegular = opentype.loadSync(path.join(__dirname, 'fonts/regular.ttf'));
+
 function downloadImage(url) {
   return new Promise((resolve, reject) => {
     const client = url.startsWith('https') ? https : http;
     client.get(url, (res) => {
+      if (res.statusCode === 301 || res.statusCode === 302) {
+        return downloadImage(res.headers.location).then(resolve).catch(reject);
+      }
       const chunks = [];
       res.on('data', chunk => chunks.push(chunk));
       res.on('end', () => resolve(Buffer.concat(chunks)));
@@ -19,14 +27,14 @@ function downloadImage(url) {
   });
 }
 
-// Разбиваем текст на строки по maxChars символов
-function wrapText(text, maxChars) {
+function wrapText(text, font, fontSize, maxWidth) {
   const words = text.split(' ');
   const lines = [];
   let current = '';
   for (const word of words) {
-    if ((current + ' ' + word).trim().length <= maxChars) {
-      current = (current + ' ' + word).trim();
+    const test = current ? current + ' ' + word : word;
+    if (font.getAdvanceWidth(test, fontSize) <= maxWidth) {
+      current = test;
     } else {
       if (current) lines.push(current);
       current = word;
@@ -36,145 +44,107 @@ function wrapText(text, maxChars) {
   return lines;
 }
 
-// POST /overlay - делает обложку: фото + затемнение + заголовок
+// POST /overlay — фото + градиент + заголовок
 app.post('/overlay', async (req, res) => {
   try {
     const { imageUrl, headline, headline2 } = req.body;
-    if (!imageUrl || !headline) {
-      return res.status(400).json({ error: 'imageUrl and headline required' });
-    }
+    if (!imageUrl || !headline) return res.status(400).json({ error: 'imageUrl and headline required' });
 
-    const imgBuffer = await downloadImage(imageUrl);
-    const img = sharp(imgBuffer);
-    const meta = await img.metadata();
-    const W = meta.width || 1024;
-    const H = meta.height || 1024;
+    const W = 1080, H = 1350;
+    const paddingX = 60;
+    const paddingBottom = 80;
+    const fs1 = 105, lh1 = 120;
+    const fs2 = 98, lh2 = 113;
 
-    const fontSize1 = Math.round(W * 0.09);   // headline
-    const fontSize2 = Math.round(W * 0.085);  // headline2 (жёлтый)
-    const lineH1 = Math.round(fontSize1 * 1.2);
-    const lineH2 = Math.round(fontSize2 * 1.2);
-    const paddingBottom = Math.round(H * 0.08);
-    const paddingX = Math.round(W * 0.06);
+    const h1Lines = wrapText(headline.toUpperCase(), fontBold, fs1, W - paddingX * 2);
+    const h2Lines = headline2 ? wrapText(headline2.toUpperCase(), fontBold, fs2, W - paddingX * 2) : [];
+    const totalH = h1Lines.length * lh1 + h2Lines.length * lh2;
 
-    const h1Lines = wrapText(headline.toUpperCase(), 14);
-    const h2Lines = headline2 ? wrapText(headline2.toUpperCase(), 14) : [];
-
-    const totalTextH = h1Lines.length * lineH1 + h2Lines.length * lineH2 + 20;
-    const gradientH = Math.round(H * 0.55);
-    const textStartY = H - paddingBottom - totalTextH;
-
-    // SVG оверлей: градиент снизу + текст
-    let svgText = '';
-    let y = textStartY;
+    let y = H - paddingBottom - totalH;
+    let textPaths = '';
 
     for (const line of h1Lines) {
-      svgText += `<text x="${paddingX}" y="${y + lineH1}" 
-        font-family="Arial Black, Arial, sans-serif" 
-        font-size="${fontSize1}" 
-        font-weight="900"
-        fill="white"
-        stroke="black"
-        stroke-width="3"
-        paint-order="stroke"
-        letter-spacing="2">${line}</text>`;
-      y += lineH1;
+      const shadow = fontBold.getPath(line, paddingX + 4, y + lh1 + 4, fs1);
+      textPaths += `<path d="${shadow.toPathData(2)}" fill="rgba(0,0,0,0.75)"/>`;
+      const main = fontBold.getPath(line, paddingX, y + lh1, fs1);
+      textPaths += `<path d="${main.toPathData(2)}" fill="white"/>`;
+      y += lh1;
     }
-
     for (const line of h2Lines) {
-      svgText += `<text x="${paddingX}" y="${y + lineH2}" 
-        font-family="Arial Black, Arial, sans-serif" 
-        font-size="${fontSize2}" 
-        font-weight="900"
-        fill="#FFD700"
-        stroke="black"
-        stroke-width="3"
-        paint-order="stroke"
-        letter-spacing="2">${line}</text>`;
-      y += lineH2;
+      const shadow = fontBold.getPath(line, paddingX + 4, y + lh2 + 4, fs2);
+      textPaths += `<path d="${shadow.toPathData(2)}" fill="rgba(0,0,0,0.75)"/>`;
+      const main = fontBold.getPath(line, paddingX, y + lh2, fs2);
+      textPaths += `<path d="${main.toPathData(2)}" fill="#FFD700"/>`;
+      y += lh2;
     }
 
     const svg = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="black" stop-opacity="0"/>
-          <stop offset="100%" stop-color="black" stop-opacity="0.82"/>
+          <stop offset="55%" stop-color="black" stop-opacity="0.45"/>
+          <stop offset="100%" stop-color="black" stop-opacity="0.9"/>
         </linearGradient>
       </defs>
-      <rect x="0" y="${H - gradientH}" width="${W}" height="${gradientH}" fill="url(#grad)"/>
-      ${svgText}
+      <rect x="0" y="${H - 650}" width="${W}" height="650" fill="url(#g)"/>
+      ${textPaths}
     </svg>`;
 
-    const overlayBuf = Buffer.from(svg);
-
-    const result = await sharp(imgBuffer)
-      .resize(1080, 1350, { fit: 'cover', position: 'center' })
-      .composite([{ input: overlayBuf, top: 0, left: 0 }])
+    const imgBuf = await downloadImage(imageUrl);
+    const result = await sharp(imgBuf)
+      .resize(W, H, { fit: 'cover', position: 'center' })
+      .composite([{ input: Buffer.from(svg), top: 0, left: 0 }])
       .jpeg({ quality: 92 })
       .toBuffer();
 
     res.set('Content-Type', 'image/jpeg');
     res.send(result);
-
   } catch (err) {
-    console.error('Overlay error:', err);
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// POST /textcard - делает текстовую карточку: тёмный фон + body + conclusion
+// POST /textcard — тёмный фон + текст
 app.post('/textcard', async (req, res) => {
   try {
     const { body, conclusion } = req.body;
     if (!body) return res.status(400).json({ error: 'body required' });
 
-    const W = 1080;
-    const H = 1350;
-    const paddingX = 70;
-    const fontSize = 36;
-    const lineH = 52;
-    const conclusionFontSize = 32;
-    const conclusionLineH = 46;
+    const W = 1080, H = 1350;
+    const px = 65;
+    const bfs = 37, blh = 54;
+    const cfs = 33, clh = 48;
+    const maxW = W - px * 2;
 
-    const bodyLines = wrapText(body, 38);
-    const conclusionLines = conclusion ? wrapText(conclusion, 38) : [];
+    const bodyLines = wrapText(body, fontRegular, bfs, maxW);
+    const conclusionLines = conclusion ? wrapText(conclusion, fontRegular, cfs, maxW) : [];
 
-    let svgContent = '';
-    let y = 120;
+    let paths = '';
+    let y = 100;
 
-    // Декоративная линия сверху
-    svgContent += `<rect x="${paddingX}" y="80" width="120" height="6" rx="3" fill="#FFD700"/>`;
+    // Жёлтая линия
+    paths += `<rect x="${px}" y="72" width="130" height="7" rx="3" fill="#FFD700"/>`;
 
-    // Body текст
     for (const line of bodyLines) {
-      svgContent += `<text x="${paddingX}" y="${y + fontSize}" 
-        font-family="Arial, sans-serif" 
-        font-size="${fontSize}"
-        fill="white"
-        opacity="0.92">${line}</text>`;
-      y += lineH;
+      const p = fontRegular.getPath(line, px, y + bfs, bfs);
+      paths += `<path d="${p.toPathData(2)}" fill="rgba(255,255,255,0.93)"/>`;
+      y += blh;
     }
 
     y += 40;
+    paths += `<rect x="${px}" y="${y}" width="${maxW}" height="2" fill="#FFD700" opacity="0.55"/>`;
+    y += 32;
 
-    // Разделитель
-    svgContent += `<rect x="${paddingX}" y="${y}" width="${W - paddingX * 2}" height="2" fill="#FFD700" opacity="0.5"/>`;
-    y += 30;
-
-    // Conclusion
     for (const line of conclusionLines) {
-      svgContent += `<text x="${paddingX}" y="${y + conclusionFontSize}" 
-        font-family="Arial, sans-serif" 
-        font-size="${conclusionFontSize}"
-        font-style="italic"
-        fill="#FFD700">${line}</text>`;
-      y += conclusionLineH;
+      const p = fontRegular.getPath(line, px, y + cfs, cfs);
+      paths += `<path d="${p.toPathData(2)}" fill="#FFD700"/>`;
+      y += clh;
     }
 
     const svg = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
-      <rect width="${W}" height="${H}" fill="#111111"/>
-      <rect x="0" y="0" width="${W}" height="${H}" fill="#1a1a2e" opacity="0.6"/>
-      ${svgContent}
+      <rect width="${W}" height="${H}" fill="#0f0f0f"/>
+      ${paths}
     </svg>`;
 
     const result = await sharp(Buffer.from(svg))
@@ -183,15 +153,13 @@ app.post('/textcard', async (req, res) => {
 
     res.set('Content-Type', 'image/jpeg');
     res.send(result);
-
   } catch (err) {
-    console.error('Textcard error:', err);
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// Health check
-app.get('/', (req, res) => res.json({ status: 'ok', service: 'image-overlay' }));
+app.get('/', (req, res) => res.json({ status: 'ok', version: 2 }));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Running on port ${PORT}`));
