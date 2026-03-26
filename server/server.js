@@ -20,7 +20,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const clientDistPath = path.resolve(__dirname, "../client/dist");
+const clientDistPath = process.env.CLIENT_DIST_PATH || path.resolve(__dirname, "../client/dist");
 
 // CORS — restrict to known origins
 const allowedOrigins = (process.env.CORS_ORIGINS || '')
