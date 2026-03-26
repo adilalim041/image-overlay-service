@@ -1,0 +1,83 @@
+{
+  "id": "cover-template-v1",
+  "name": "AI News Cover",
+  "width": 1080,
+  "height": 1350,
+  "layers": [
+    {
+      "id": "bg-image",
+      "name": "Фоновое фото",
+      "type": "image",
+      "x": 0,
+      "y": 0,
+      "width": 1080,
+      "height": 1350,
+      "src": "{{imageUrl}}",
+      "fit": "cover",
+      "locked": false,
+      "rotation": 0
+    },
+    {
+      "id": "logo",
+      "name": "Логотип",
+      "type": "logo",
+      "x": 900,
+      "y": 40,
+      "width": 120,
+      "height": 120,
+      "src": "/assets/logo.png",
+      "locked": true
+    },
+    {
+      "id": "layer-1772652436981-8nn5r",
+      "name": "Rectangle",
+      "type": "rect",
+      "x": -29,
+      "y": 262,
+      "width": 1126,
+      "height": 1096,
+      "fill": "gradient",
+      "visible": true,
+      "opacity": 100,
+      "rotation": 180,
+      "fillType": "gradient",
+      "gradientDirection": "vertical",
+      "gradientFrom": "#000000ff",
+      "gradientTo": "#00000000"
+    },
+    {
+      "id": "headline-text",
+      "name": "Заголовок",
+      "type": "text",
+      "x": 41,
+      "y": 891,
+      "width": 960,
+      "height": 119,
+      "text": "{{headline}}",
+      "fontSize": 119,
+      "fontFamily": "bold",
+      "color": "#ffffff",
+      "align": "left",
+      "locked": false,
+      "rotation": 0
+    },
+    {
+      "id": "headline2-text",
+      "name": "Подзаголовок",
+      "type": "text",
+      "x": 41,
+      "y": 1042,
+      "width": 960,
+      "height": 111,
+      "text": "{{headline2}}",
+      "fontSize": 98,
+      "fontFamily": "bold",
+      "color": "#FFD700",
+      "align": "left",
+      "locked": false,
+      "rotation": 0,
+      "fill": "#ff0000"
+    }
+  ],
+  "updatedAt": "2026-03-04T20:22:28.999Z"
+}

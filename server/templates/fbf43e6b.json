@@ -1,0 +1,58 @@
+{
+  "id": "fbf43e6b",
+  "name": "test1",
+  "width": 1080,
+  "height": 1350,
+  "layers": [
+    {
+      "id": "layer-1773096254102-8xd9w",
+      "name": "Изображение 1",
+      "type": "image",
+      "x": 0,
+      "y": 0,
+      "width": 1080,
+      "height": 1350,
+      "src": "{{image1}}",
+      "defaultImage": "",
+      "fit": "cover",
+      "visible": true,
+      "opacity": 100
+    },
+    {
+      "id": "layer-1773096257477-95lq8",
+      "name": "Прямоугольник",
+      "type": "rect",
+      "x": 0,
+      "y": -76,
+      "width": 1085,
+      "height": 1451,
+      "fill": "gradient",
+      "visible": true,
+      "opacity": 100,
+      "rotation": 180,
+      "fillType": "gradient",
+      "gradientDirection": "vertical",
+      "gradientFrom": "#000000ff",
+      "gradientTo": "#00000000"
+    },
+    {
+      "id": "layer-1773096340647-lq5ww",
+      "name": "Текст 1",
+      "type": "text",
+      "x": 63,
+      "y": 1059,
+      "width": 960,
+      "text": "{{text1}}",
+      "fontSize": 84,
+      "fill": "#ffffff",
+      "fontFamily": "Montserrat",
+      "align": "left",
+      "visible": true,
+      "opacity": 100,
+      "rotation": 0,
+      "height": 95
+    }
+  ],
+  "createdAt": "2026-03-09T22:46:03.640Z",
+  "updatedAt": "2026-03-09T22:46:03.640Z"
+}
