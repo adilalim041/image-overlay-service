@@ -132,6 +132,17 @@ export function useSync(canvasRef, { layers, selectedLayerId, showGrid, template
     canvas.add(border);
     setBack(canvas, border);
 
+    // Clip objects to template boundaries so nothing renders outside
+    canvas.clipPath = new Rect({
+      left: 0,
+      top: 0,
+      width: templateWidth,
+      height: templateHeight,
+      originX: 'left',
+      originY: 'top',
+      absolutePositioned: true
+    });
+
     if (showGrid) {
       for (let x = GRID_STEP; x < templateWidth; x += GRID_STEP) {
         const l = new Line([x, 0, x, templateHeight], {

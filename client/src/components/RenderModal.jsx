@@ -33,16 +33,25 @@ export default function RenderModal({ open, layers, onClose, onRender, resultUrl
     }));
   };
 
-  const buildRenderData = () => {
+  const buildRenderPayload = () => {
     const data = {};
-    (layers || []).forEach(layer => {
-      if (layer.visible === false) return;
+    const overriddenLayers = (layers || []).map(layer => {
+      if (layer.visible === false) return layer;
       const overrides = testData[layer.id] || {};
+      const copy = { ...layer };
 
       if (layer.type === 'text') {
-        const varName = extractVar(layer.text);
-        if (varName && overrides.text) {
-          data[varName] = overrides.text;
+        // Extract all variables from the text field
+        const varMatches = (layer.text || '').matchAll(/\{\{([^}]+)\}\}/g);
+        for (const m of varMatches) {
+          const varName = m[1].trim();
+          if (overrides.text) {
+            data[varName] = overrides.text;
+          }
+        }
+        // Also directly override layer text if the user entered a value
+        if (overrides.text) {
+          copy.text = overrides.text;
         }
       }
 
@@ -51,19 +60,24 @@ export default function RenderModal({ open, layers, onClose, onRender, resultUrl
         if (varName && overrides.src) {
           data[varName] = overrides.src;
         }
+        if (overrides.src) {
+          copy.src = overrides.src;
+        }
       }
+
+      return copy;
     });
 
     console.log('[TestRender] layers:', layers.map(l => ({ id: l.id, name: l.name, type: l.type, src: l.src, text: l.text?.slice(0, 30) })));
     console.log('[TestRender] testData:', testData);
     console.log('[TestRender] data to server:', data);
-    return data;
+    return { data, layers: overriddenLayers };
   };
 
   const render = async () => {
     setRendering(true);
     try {
-      await onRender(buildRenderData());
+      await onRender(buildRenderPayload());
     } catch (e) {
       console.error('Render failed:', e);
     }

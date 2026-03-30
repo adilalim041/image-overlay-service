@@ -28,11 +28,18 @@ function wrapText(text, font, fontSize, maxWidth) {
   return lines.length ? lines : [""];
 }
 
+function applyTextTransform(text, transform) {
+  if (!transform || transform === "none") return text;
+  if (transform === "uppercase") return text.toUpperCase();
+  if (transform === "lowercase") return text.toLowerCase();
+  return text;
+}
+
 function renderTextLayer(layer) {
   const font = getFont(layer.fontFamily);
   if (!font) return "";
 
-  const text = layer.text || "";
+  const text = applyTextTransform(layer.text || "", layer.textTransform);
   const fontSize = Number(layer.fontSize) || 32;
   const maxWidth = Number(layer.width) || 960;
   const x = Number(layer.x) || 0;

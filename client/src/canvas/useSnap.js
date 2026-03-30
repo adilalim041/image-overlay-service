@@ -101,21 +101,25 @@ export function useSnap(canvasRef, guidesRef, { templateWidth, templateHeight })
 
       clearGuides(canvas, guidesRef);
 
-      const w = (obj.width || 1) * (obj.scaleX || 1);
-      const h = (obj.height || 1) * (obj.scaleY || 1);
+      const w = obj.getScaledWidth();
+      const h = obj.getScaledHeight();
       const left = (obj.left || 0) - w / 2;
       const right = (obj.left || 0) + w / 2;
       const top = (obj.top || 0) - h / 2;
       const bottom = (obj.top || 0) + h / 2;
       const corner = obj.__corner;
+      const baseW = obj.width || 1;
+      const baseH = obj.height || 1;
       const { tX, tY } = getTargets(obj.data.layerId);
 
+      // Sort targets by proximity to the edge being snapped
       if (['br', 'mr', 'tr'].includes(corner)) {
-        for (const tx of tX) {
+        const sorted = [...tX].sort((a, b) => Math.abs(right - a) - Math.abs(right - b));
+        for (const tx of sorted) {
           if (Math.abs(right - tx) <= SNAP_THRESHOLD) {
             const newW = tx - left;
             if (newW > 1) {
-              obj.set({ scaleX: newW / (obj.width || 1), left: left + newW / 2 });
+              obj.set({ scaleX: newW / baseW, left: left + newW / 2 });
               addGuide(canvas, guidesRef, [tx, 0, tx, templateHeight]);
             }
             break;
@@ -123,11 +127,12 @@ export function useSnap(canvasRef, guidesRef, { templateWidth, templateHeight })
         }
       }
       if (['bl', 'ml', 'tl'].includes(corner)) {
-        for (const tx of tX) {
+        const sorted = [...tX].sort((a, b) => Math.abs(left - a) - Math.abs(left - b));
+        for (const tx of sorted) {
           if (Math.abs(left - tx) <= SNAP_THRESHOLD) {
             const newW = right - tx;
             if (newW > 1) {
-              obj.set({ scaleX: newW / (obj.width || 1), left: tx + newW / 2 });
+              obj.set({ scaleX: newW / baseW, left: tx + newW / 2 });
               addGuide(canvas, guidesRef, [tx, 0, tx, templateHeight]);
             }
             break;
@@ -135,11 +140,12 @@ export function useSnap(canvasRef, guidesRef, { templateWidth, templateHeight })
         }
       }
       if (['br', 'mb', 'bl'].includes(corner)) {
-        for (const ty of tY) {
+        const sorted = [...tY].sort((a, b) => Math.abs(bottom - a) - Math.abs(bottom - b));
+        for (const ty of sorted) {
           if (Math.abs(bottom - ty) <= SNAP_THRESHOLD) {
             const newH = ty - top;
             if (newH > 1) {
-              obj.set({ scaleY: newH / (obj.height || 1), top: top + newH / 2 });
+              obj.set({ scaleY: newH / baseH, top: top + newH / 2 });
               addGuide(canvas, guidesRef, [0, ty, templateWidth, ty]);
             }
             break;
@@ -147,11 +153,12 @@ export function useSnap(canvasRef, guidesRef, { templateWidth, templateHeight })
         }
       }
       if (['tl', 'mt', 'tr'].includes(corner)) {
-        for (const ty of tY) {
+        const sorted = [...tY].sort((a, b) => Math.abs(top - a) - Math.abs(top - b));
+        for (const ty of sorted) {
           if (Math.abs(top - ty) <= SNAP_THRESHOLD) {
             const newH = bottom - ty;
             if (newH > 1) {
-              obj.set({ scaleY: newH / (obj.height || 1), top: ty + newH / 2 });
+              obj.set({ scaleY: newH / baseH, top: ty + newH / 2 });
               addGuide(canvas, guidesRef, [0, ty, templateWidth, ty]);
             }
             break;

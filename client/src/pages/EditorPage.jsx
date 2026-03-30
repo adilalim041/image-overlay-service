@@ -271,7 +271,8 @@ export default function EditorPage() {
     setTimeout(() => setToast({ show: false, message: '' }), 3000);
   };
 
-  const onTestRender = async (data) => {
+  const onTestRender = async (payload) => {
+    const { data, layers: overriddenLayers } = payload;
     const resp = await fetch(`${API_BASE}/api/render`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -279,7 +280,7 @@ export default function EditorPage() {
         template: {
           width: editor.width,
           height: editor.height,
-          layers: layers
+          layers: overriddenLayers
         },
         data
       })
