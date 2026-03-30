@@ -22,6 +22,7 @@ const FONT_MAP = {
   "Open Sans": "OpenSans-Regular.ttf",
   "Open Sans-Bold": "OpenSans-Bold.ttf",
   "Bebas Neue": "BebasNeue-Regular.ttf",
+  "Bebas Neue Cyrillic": "bebasneuecyrillic.ttf",
   Oswald: "Oswald-Variable.ttf",
   Roboto: "Roboto-Variable.ttf",
   "Plus Jakarta Sans": "PlusJakartaSans-Regular.ttf",

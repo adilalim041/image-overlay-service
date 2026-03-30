@@ -16,6 +16,7 @@ const FONTS = [
   { label: 'Space Grotesk', value: 'Space Grotesk' },
   { label: 'Open Sans', value: 'Open Sans' },
   { label: 'Bebas Neue', value: 'Bebas Neue' },
+  { label: 'Bebas Neue Cyrillic', value: 'Bebas Neue Cyrillic' },
   { label: 'Oswald', value: 'Oswald' },
   { label: 'Roboto', value: 'Roboto' },
   { label: 'Sans-serif', value: 'sans-serif' },
