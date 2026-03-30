@@ -2,10 +2,10 @@ import React, { useMemo, useState } from 'react';
 import {
   AlignCenterHorizontal,
   AlignCenterVertical,
-  AlignEndVertical,
+  AlignEndHorizontal,
   AlignLeft,
   AlignRight,
-  AlignStartVertical,
+  AlignStartHorizontal,
   ChevronDown,
   Link2,
   Trash2
@@ -88,9 +88,9 @@ export default function PropertiesPanel({ layer, onUpdate, onDelete, onAlign }) 
       { id: 'left', icon: AlignLeft, title: 'По левому краю' },
       { id: 'centerH', icon: AlignCenterHorizontal, title: 'По центру горизонтально' },
       { id: 'right', icon: AlignRight, title: 'По правому краю' },
-      { id: 'top', icon: AlignStartVertical, title: 'По верхнему краю' },
+      { id: 'top', icon: AlignStartHorizontal, title: 'По верхнему краю' },
       { id: 'centerV', icon: AlignCenterVertical, title: 'По центру вертикально' },
-      { id: 'bottom', icon: AlignEndVertical, title: 'По нижнему краю' }
+      { id: 'bottom', icon: AlignEndHorizontal, title: 'По нижнему краю' }
     ],
     []
   );

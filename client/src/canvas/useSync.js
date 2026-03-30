@@ -132,8 +132,8 @@ export function useSync(canvasRef, { layers, selectedLayerId, showGrid, template
     canvas.add(border);
     setBack(canvas, border);
 
-    // Clip objects to template boundaries so nothing renders outside
-    canvas.clipPath = new Rect({
+    // Clip each layer object to template bounds (selection handles stay visible)
+    const templateClip = new Rect({
       left: 0,
       top: 0,
       width: templateWidth,
@@ -206,7 +206,7 @@ export function useSync(canvasRef, { layers, selectedLayerId, showGrid, template
 
       const existingObj = existing[layer.id];
       if (existingObj) {
-        existingObj.set(props);
+        existingObj.set({ ...props, clipPath: templateClip });
         if (layer.type === 'text') {
           existingObj.set({
             text: layer.text || '',
@@ -249,6 +249,7 @@ export function useSync(canvasRef, { layers, selectedLayerId, showGrid, template
         }
         if (obj.controls?.mtr) obj.controls.mtr.offsetY = -30;
         obj.set('data', { layerId: layer.id });
+        obj.clipPath = templateClip;
         canvas.add(obj);
       }
     });

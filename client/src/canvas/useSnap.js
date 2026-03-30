@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Line } from 'fabric';
 
-const SNAP_THRESHOLD = 8;
+const SNAP_THRESHOLD = 10;
 
 function clearGuides(canvas, guidesRef) {
   guidesRef.current.forEach((x) => canvas.remove(x));
@@ -101,8 +101,10 @@ export function useSnap(canvasRef, guidesRef, { templateWidth, templateHeight })
 
       clearGuides(canvas, guidesRef);
 
-      const w = obj.getScaledWidth();
-      const h = obj.getScaledHeight();
+      const sw = (obj.strokeWidth || 0) * (obj.scaleX || 1);
+      const sh = (obj.strokeWidth || 0) * (obj.scaleY || 1);
+      const w = obj.width * (obj.scaleX || 1) + sw;
+      const h = obj.height * (obj.scaleY || 1) + sh;
       const left = (obj.left || 0) - w / 2;
       const right = (obj.left || 0) + w / 2;
       const top = (obj.top || 0) - h / 2;

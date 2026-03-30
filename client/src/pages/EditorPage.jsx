@@ -141,7 +141,27 @@ export default function EditorPage() {
   };
   const deleteLayer = (idToDelete) => {
     apply((prev) => {
-      const nextLayers = prev.layers.filter((x) => x.id !== idToDelete);
+      let nextLayers = prev.layers.filter((x) => x.id !== idToDelete);
+      // Re-number text variables: headline, headline2, headline3...
+      let textIdx = 0;
+      nextLayers = nextLayers.map((l) => {
+        if (l.type === 'text' && l.text?.startsWith('{{headline')) {
+          textIdx++;
+          const varName = textIdx === 1 ? 'headline' : `headline${textIdx}`;
+          return { ...l, text: `{{${varName}}}`, name: `{{${varName}}}` };
+        }
+        return l;
+      });
+      // Re-number image variables: imageUrl, imageUrl2, imageUrl3...
+      let imgIdx = 0;
+      nextLayers = nextLayers.map((l) => {
+        if ((l.type === 'image' || l.type === 'logo') && l.src?.startsWith('{{image')) {
+          imgIdx++;
+          const varName = imgIdx === 1 ? 'imageUrl' : `imageUrl${imgIdx}`;
+          return { ...l, src: `{{${varName}}}`, name: `{{${varName}}}` };
+        }
+        return l;
+      });
       if (selectedLayerId === idToDelete) setSelectedLayerId(nextLayers[0]?.id || null);
       return { ...prev, layers: nextLayers };
     });
@@ -353,14 +373,16 @@ export default function EditorPage() {
             className="icon-btn h-9 w-9"
             onClick={() => {
               const textCount = layers.filter((l) => l.type === 'text').length;
+              const varName = textCount === 0 ? 'headline' : `headline${textCount + 1}`;
               addLayer({
                 id: newId(),
-                name: `Текст ${textCount + 1}`,
+                name: `{{${varName}}}`,
                 type: 'text',
                 x: 60,
                 y: 200 + textCount * 120,
                 width: 960,
-                text: `{{text${textCount + 1}}}`,
+                text: `{{${varName}}}`,
+                textTransform: 'uppercase',
                 fontSize: 72,
                 fill: '#ffffff',
                 fontFamily: 'Montserrat',
@@ -378,15 +400,16 @@ export default function EditorPage() {
             className="icon-btn h-9 w-9"
             onClick={() => {
               const imageCount = layers.filter((l) => l.type === 'image' || l.type === 'logo').length;
+              const varName = imageCount === 0 ? 'imageUrl' : `imageUrl${imageCount + 1}`;
               addLayer({
                 id: newId(),
-                name: `Изображение ${imageCount + 1}`,
+                name: `{{${varName}}}`,
                 type: 'image',
                 x: imageCount === 0 ? 0 : 60,
                 y: imageCount === 0 ? 0 : 80,
                 width: imageCount === 0 ? editor.width : 300,
                 height: imageCount === 0 ? editor.height : 300,
-                src: `{{image${imageCount + 1}}}`,
+                src: `{{${varName}}}`,
                 defaultImage: '',
                 fit: 'cover',
                 visible: true,
