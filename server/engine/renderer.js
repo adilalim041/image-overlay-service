@@ -39,37 +39,114 @@ function renderTextLayer(layer) {
   const font = getFont(layer.fontFamily);
   if (!font) return "";
 
-  const text = applyTextTransform(layer.text || "", layer.textTransform);
+  const rawText = applyTextTransform(layer.text || "", layer.textTransform);
   const fontSize = Number(layer.fontSize) || 32;
   const maxWidth = Number(layer.width) || 960;
   const x = Number(layer.x) || 0;
   const y = Number(layer.y) || 0;
   const color = layer.fill || "#ffffff";
+  const accentColor = layer.accentColor || "#00E676";
   const align = layer.align || "left";
   const lineHeightMultiplier = Number(layer.lineHeight) || 1.2;
   const lineHeight = fontSize * lineHeightMultiplier;
   const opacity = (layer.opacity ?? 100) / 100;
   const rotation = Number(layer.rotation) || 0;
 
-  const lines = wrapText(text, font, fontSize, maxWidth);
-  const paths = lines
-    .map((line, i) => {
-      const lineWidth = font.getAdvanceWidth(line, fontSize);
-      const drawX =
-        align === "center" ? x + (maxWidth - lineWidth) / 2 : align === "right" ? x + maxWidth - lineWidth : x;
-      const baselineY = y + fontSize + i * lineHeight;
-      const pathData = font.getPath(line, drawX, baselineY, fontSize).toPathData(2);
-      return `<path fill="${escapeXml(color)}" d="${pathData}" />`;
-    })
-    .join("");
+  // Parse **highlighted** segments
+  function parseSegments(text) {
+    const segments = [];
+    const regex = /\*\*([^*]+)\*\*/g;
+    let lastIndex = 0;
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        segments.push({ text: text.slice(lastIndex, match.index), highlight: false });
+      }
+      segments.push({ text: match[1], highlight: true });
+      lastIndex = match.index + match[0].length;
+    }
+    if (lastIndex < text.length) {
+      segments.push({ text: text.slice(lastIndex), highlight: false });
+    }
+    return segments.length ? segments : [{ text, highlight: false }];
+  }
 
-  if (!paths) return "";
+  // Strip ** for line wrapping calculation
+  const plainText = rawText.replace(/\*\*([^*]+)\*\*/g, '$1');
+  const lines = wrapText(plainText, font, fontSize, maxWidth);
+
+  // Now map segments back to lines
+  const allSegments = parseSegments(rawText);
+
+  // Build plain text from segments to track position
+  let segmentQueue = [...allSegments];
+
+  const paths = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const lineWidth = font.getAdvanceWidth(line, fontSize);
+    const lineStartX = align === "center" ? x + (maxWidth - lineWidth) / 2
+                     : align === "right" ? x + maxWidth - lineWidth
+                     : x;
+    const baselineY = y + fontSize + i * lineHeight;
+
+    // For each line, find which segments contribute
+    let remaining = line;
+    let curX = lineStartX;
+
+    while (remaining.length > 0 && segmentQueue.length > 0) {
+      const seg = segmentQueue[0];
+      const segPlain = seg.text;
+
+      if (segPlain.length === 0) {
+        segmentQueue.shift();
+        continue;
+      }
+
+      // How much of this segment fits in remaining line text
+      let take = "";
+      let matchLen = 0;
+      for (let c = 0; c < segPlain.length && matchLen < remaining.length; c++) {
+        if (segPlain[c] === remaining[matchLen]) {
+          take += segPlain[c];
+          matchLen++;
+        }
+      }
+
+      if (take.length === 0) {
+        // Skip whitespace alignment
+        if (remaining[0] === ' ') {
+          curX += font.getAdvanceWidth(' ', fontSize);
+          remaining = remaining.slice(1);
+          continue;
+        }
+        segmentQueue.shift();
+        continue;
+      }
+
+      const segColor = seg.highlight ? accentColor : color;
+      const pathData = font.getPath(take, curX, baselineY, fontSize).toPathData(2);
+      paths.push(`<path fill="${escapeXml(segColor)}" d="${pathData}" />`);
+
+      curX += font.getAdvanceWidth(take, fontSize);
+      remaining = remaining.slice(matchLen);
+
+      // Update or remove segment from queue
+      if (take.length >= segPlain.length) {
+        segmentQueue.shift();
+      } else {
+        segmentQueue[0] = { ...seg, text: segPlain.slice(take.length) };
+      }
+    }
+  }
+
+  if (!paths.length) return "";
   const cx = x + maxWidth / 2;
   const cy = y + (lines.length * lineHeight) / 2;
   let groupAttrs = "";
   if (rotation !== 0) groupAttrs += ` transform="rotate(${rotation}, ${cx}, ${cy})"`;
   if (opacity < 1) groupAttrs += ` opacity="${opacity}"`;
-  return groupAttrs ? `<g${groupAttrs}>${paths}</g>` : paths;
+  return groupAttrs ? `<g${groupAttrs}>${paths.join("")}</g>` : paths.join("");
 }
 
 function renderRectLayer(layer) {
@@ -403,6 +480,34 @@ export async function renderTemplate(templateInput, data = {}, options = {}) {
             `<svg width="${lw}" height="${lh}"><rect width="${lw}" height="${lh}" rx="${layer.radius}" ry="${layer.radius}" fill="white"/></svg>`
           );
           imgSharp = imgSharp.composite([{ input: mask, blend: "dest-in" }]);
+        }
+
+        // Circle shape
+        if (layer.shape === 'circle') {
+          const cx = lw / 2;
+          const cy = lh / 2;
+          const r = Math.min(lw, lh) / 2;
+          const mask = Buffer.from(
+            `<svg width="${lw}" height="${lh}"><circle cx="${cx}" cy="${cy}" r="${r}" fill="white"/></svg>`
+          );
+          imgSharp = imgSharp.composite([{ input: mask, blend: "dest-in" }]);
+        }
+
+        // Border for images
+        if (layer.borderWidth && layer.borderWidth > 0) {
+          const bw = Number(layer.borderWidth);
+          const bc = escapeXml(layer.borderColor || '#ffffff');
+          let borderSvg;
+          if (layer.shape === 'circle') {
+            const cx = lw / 2;
+            const cy = lh / 2;
+            const r = Math.min(lw, lh) / 2 - bw / 2;
+            borderSvg = `<svg width="${lw}" height="${lh}"><circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${bc}" stroke-width="${bw}"/></svg>`;
+          } else {
+            const rx = layer.radius || 0;
+            borderSvg = `<svg width="${lw}" height="${lh}"><rect x="${bw/2}" y="${bw/2}" width="${lw-bw}" height="${lh-bw}" rx="${rx}" ry="${rx}" fill="none" stroke="${bc}" stroke-width="${bw}"/></svg>`;
+          }
+          imgSharp = imgSharp.composite([{ input: Buffer.from(borderSvg), blend: "over" }]);
         }
 
         const processedBuffer = await imgSharp.png().toBuffer();
