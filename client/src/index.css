@@ -69,6 +69,12 @@
 }
 
 @font-face {
+  font-family: 'Bebas Neue Cyrillic';
+  src: url('/fonts/bebasneuecyrillic.ttf');
+  font-weight: 400;
+}
+
+@font-face {
   font-family: 'Oswald';
   src: url('/fonts/Oswald-Variable.ttf');
   font-weight: 400 700;
