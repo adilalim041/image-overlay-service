@@ -482,16 +482,17 @@ export async function renderTemplate(templateInput, data = {}, options = {}) {
           imgSharp = imgSharp.composite([{ input: mask, blend: "dest-in" }]);
         }
 
-        // Circle shape — clip image to circle
+        // Circle shape — clip image to circle using SVG with transparent background
         if (layer.shape === 'circle') {
-          const cxC = lw / 2;
-          const cyC = lh / 2;
           const rC = Math.min(lw, lh) / 2;
-          const circleMask = Buffer.from(
-            `<svg width="${lw}" height="${lh}"><circle cx="${cxC}" cy="${cyC}" r="${rC}" fill="white"/></svg>`
-          );
-          const circleBuffer = await imgSharp.ensureAlpha().png().toBuffer();
-          imgSharp = sharp(circleBuffer).composite([{ input: circleMask, blend: "dest-in" }]);
+          const flatBuf = await imgSharp.png().toBuffer();
+          // Encode image as base64 data URI inside SVG with circle clip
+          const b64 = flatBuf.toString('base64');
+          const clipSvg = `<svg width="${lw}" height="${lh}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+            <defs><clipPath id="cc"><circle cx="${lw/2}" cy="${lh/2}" r="${rC}"/></clipPath></defs>
+            <image href="data:image/png;base64,${b64}" width="${lw}" height="${lh}" clip-path="url(#cc)"/>
+          </svg>`;
+          imgSharp = sharp(Buffer.from(clipSvg)).resize(lw, lh).png();
         }
 
         // Shadow for images (rendered as separate composite before the image)
