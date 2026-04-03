@@ -482,15 +482,47 @@ export async function renderTemplate(templateInput, data = {}, options = {}) {
           imgSharp = imgSharp.composite([{ input: mask, blend: "dest-in" }]);
         }
 
-        // Circle shape
+        // Circle shape — clip image to circle
         if (layer.shape === 'circle') {
-          const cx = lw / 2;
-          const cy = lh / 2;
-          const r = Math.min(lw, lh) / 2;
-          const mask = Buffer.from(
-            `<svg width="${lw}" height="${lh}"><circle cx="${cx}" cy="${cy}" r="${r}" fill="white"/></svg>`
+          const cxC = lw / 2;
+          const cyC = lh / 2;
+          const rC = Math.min(lw, lh) / 2;
+          const circleMask = Buffer.from(
+            `<svg width="${lw}" height="${lh}"><circle cx="${cxC}" cy="${cyC}" r="${rC}" fill="white"/></svg>`
           );
-          imgSharp = imgSharp.composite([{ input: mask, blend: "dest-in" }]);
+          const circleBuffer = await imgSharp.ensureAlpha().png().toBuffer();
+          imgSharp = sharp(circleBuffer).composite([{ input: circleMask, blend: "dest-in" }]);
+        }
+
+        // Shadow for images (rendered as separate composite before the image)
+        if (layer.shadowEnabled || (layer.shadowBlur && layer.shadowBlur > 0)) {
+          const blur = Number(layer.shadowBlur) || 10;
+          const sx = Number(layer.shadowX) || 0;
+          const sy = Number(layer.shadowY) || 4;
+          const shadowColor = layer.shadowColor || '#000000';
+          const pad = blur * 2;
+          const sw = lw + pad * 2;
+          const sh = lh + pad * 2;
+          let shadowSvg;
+          if (layer.shape === 'circle') {
+            const cr = Math.min(lw, lh) / 2;
+            shadowSvg = `<svg width="${sw}" height="${sh}" xmlns="http://www.w3.org/2000/svg">
+              <defs><filter id="s"><feGaussianBlur stdDeviation="${blur/2}"/></filter></defs>
+              <circle cx="${pad + lw/2 + sx}" cy="${pad + lh/2 + sy}" r="${cr}" fill="${escapeXml(shadowColor)}" filter="url(#s)"/>
+            </svg>`;
+          } else {
+            const rx = layer.radius || 0;
+            shadowSvg = `<svg width="${sw}" height="${sh}" xmlns="http://www.w3.org/2000/svg">
+              <defs><filter id="s"><feGaussianBlur stdDeviation="${blur/2}"/></filter></defs>
+              <rect x="${pad + sx}" y="${pad + sy}" width="${lw}" height="${lh}" rx="${rx}" ry="${rx}" fill="${escapeXml(shadowColor)}" filter="url(#s)"/>
+            </svg>`;
+          }
+          const shadowBuffer = await sharp(Buffer.from(shadowSvg)).png().toBuffer();
+          composites.push({
+            input: shadowBuffer,
+            left: Math.round((layer.x || 0) - pad),
+            top: Math.round((layer.y || 0) - pad)
+          });
         }
 
         // Border for images
@@ -499,13 +531,13 @@ export async function renderTemplate(templateInput, data = {}, options = {}) {
           const bc = escapeXml(layer.borderColor || '#ffffff');
           let borderSvg;
           if (layer.shape === 'circle') {
-            const cx = lw / 2;
-            const cy = lh / 2;
-            const r = Math.min(lw, lh) / 2 - bw / 2;
-            borderSvg = `<svg width="${lw}" height="${lh}"><circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${bc}" stroke-width="${bw}"/></svg>`;
+            const cxB = lw / 2;
+            const cyB = lh / 2;
+            const rB = Math.min(lw, lh) / 2 - bw / 2;
+            borderSvg = `<svg width="${lw}" height="${lh}" xmlns="http://www.w3.org/2000/svg"><circle cx="${cxB}" cy="${cyB}" r="${rB}" fill="none" stroke="${bc}" stroke-width="${bw}"/></svg>`;
           } else {
             const rx = layer.radius || 0;
-            borderSvg = `<svg width="${lw}" height="${lh}"><rect x="${bw/2}" y="${bw/2}" width="${lw-bw}" height="${lh-bw}" rx="${rx}" ry="${rx}" fill="none" stroke="${bc}" stroke-width="${bw}"/></svg>`;
+            borderSvg = `<svg width="${lw}" height="${lh}" xmlns="http://www.w3.org/2000/svg"><rect x="${bw/2}" y="${bw/2}" width="${lw-bw}" height="${lh-bw}" rx="${rx}" ry="${rx}" fill="none" stroke="${bc}" stroke-width="${bw}"/></svg>`;
           }
           imgSharp = imgSharp.composite([{ input: Buffer.from(borderSvg), blend: "over" }]);
         }
