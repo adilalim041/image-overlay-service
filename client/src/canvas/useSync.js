@@ -115,48 +115,31 @@ function loadStaticImage(canvas, layer, props, clipPath, w, h) {
   html.src = layer.src;
 }
 
-function hexWithAlphaToRgba(color) {
-  if (typeof color !== 'string') return color;
-  if (color.startsWith('#') && color.length === 9) {
-    const r = parseInt(color.slice(1, 3), 16);
-    const g = parseInt(color.slice(3, 5), 16);
-    const b = parseInt(color.slice(5, 7), 16);
-    const a = parseInt(color.slice(7, 9), 16) / 255;
-    return `rgba(${r}, ${g}, ${b}, ${a.toFixed(3)})`;
-  }
-  return color;
+function parseHexRgba(color) {
+  if (typeof color !== 'string') return { r: 255, g: 255, b: 255, a: 1 };
+  if (!color.startsWith('#')) return { r: 255, g: 255, b: 255, a: 1 };
+  const hex = color.length === 9 ? color : color + 'ff';
+  return {
+    r: parseInt(hex.slice(1, 3), 16),
+    g: parseInt(hex.slice(3, 5), 16),
+    b: parseInt(hex.slice(5, 7), 16),
+    a: parseInt(hex.slice(7, 9), 16) / 255
+  };
 }
 
-function lineGradient(layer, x1, y1, x2, y2) {
+function lineGradientPreviewColor(layer) {
+  // Fabric Gradient on Line stroke is unreliable (bbox degenerate for
+  // horizontal/vertical lines). For editor preview we show the gradient's
+  // midpoint color as a solid stroke so the line is always visible; the
+  // server renderer produces the real gradient in the exported PNG.
   if (layer.fillType !== 'gradient' || !layer.gradientFrom || !layer.gradientTo) return null;
-  const dir = layer.gradientDirection || 'horizontal';
-  // Direction of the line itself (which endpoint is left/top)
-  const leftFirst = x1 <= x2;
-  const topFirst = y1 <= y2;
-  let coords;
-  if (dir === 'vertical') {
-    coords = { x1: 0, y1: topFirst ? 0 : 1, x2: 0, y2: topFirst ? 1 : 0 };
-  } else if (dir === 'diagonal') {
-    coords = {
-      x1: leftFirst ? 0 : 1,
-      y1: topFirst ? 0 : 1,
-      x2: leftFirst ? 1 : 0,
-      y2: topFirst ? 1 : 0
-    };
-  } else {
-    coords = { x1: leftFirst ? 0 : 1, y1: 0, x2: leftFirst ? 1 : 0, y2: 0 };
-  }
-  // Suppress unused warnings if x1/y1/x2/y2 aren't referenced above
-  void x1; void y1; void x2; void y2;
-  return new Gradient({
-    type: 'linear',
-    gradientUnits: 'percentage',
-    coords,
-    colorStops: [
-      { offset: 0, color: hexWithAlphaToRgba(layer.gradientFrom) },
-      { offset: 1, color: hexWithAlphaToRgba(layer.gradientTo) }
-    ]
-  });
+  const a = parseHexRgba(layer.gradientFrom);
+  const b = parseHexRgba(layer.gradientTo);
+  const r = Math.round((a.r + b.r) / 2);
+  const g = Math.round((a.g + b.g) / 2);
+  const bl = Math.round((a.b + b.b) / 2);
+  const al = ((a.a + b.a) / 2).toFixed(3);
+  return `rgba(${r}, ${g}, ${bl}, ${al})`;
 }
 
 function applyTextTransform(text, transform) {
@@ -291,7 +274,7 @@ export function useSync(canvasRef, { layers, selectedLayerId, showGrid, template
         const y1 = Number(layer.y1) || 0;
         const x2 = Number(layer.x2) || 100;
         const y2 = Number(layer.y2) || 0;
-        const stroke = lineGradient(layer, x1, y1, x2, y2) || (layer.stroke || '#FFFFFF');
+        const stroke = lineGradientPreviewColor(layer) || (layer.stroke || '#FFFFFF');
         const lineProps = {
           stroke,
           strokeWidth: Number(layer.strokeWidth) || 2,
