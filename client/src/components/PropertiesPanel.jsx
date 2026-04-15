@@ -257,6 +257,72 @@ export default function PropertiesPanel({ layer, onUpdate, onDelete, onAlign }) 
         </Section>
       )}
 
+      {layer.type === 'line' && (
+        <Section title="LINE" open={open.content} onToggle={() => setOpen((x) => ({ ...x, content: !x.content }))}>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="X1"><input type="number" className="num-input w-full" value={layer.x1 ?? 0} onChange={(e) => setNum('x1', e.target.value)} /></Field>
+            <Field label="Y1"><input type="number" className="num-input w-full" value={layer.y1 ?? 0} onChange={(e) => setNum('y1', e.target.value)} /></Field>
+            <Field label="X2"><input type="number" className="num-input w-full" value={layer.x2 ?? 100} onChange={(e) => setNum('x2', e.target.value)} /></Field>
+            <Field label="Y2"><input type="number" className="num-input w-full" value={layer.y2 ?? 0} onChange={(e) => setNum('y2', e.target.value)} /></Field>
+          </div>
+          <Field label="Width"><div className="grid grid-cols-[1fr_60px] gap-2"><input type="range" min={1} max={50} className="slider w-full" style={rangeStyle(1, 50, layer.strokeWidth || 4)} value={layer.strokeWidth || 4} onChange={(e) => setNum('strokeWidth', e.target.value)} /><input type="number" className="num-input w-full" value={layer.strokeWidth || 4} onChange={(e) => setNum('strokeWidth', e.target.value)} /></div></Field>
+          <Field label="Style">
+            <div className="grid grid-cols-3 gap-2">
+              {[{ v: 'solid', l: '———' }, { v: 'dashed', l: '- - -' }, { v: 'dotted', l: '· · ·' }].map((s) => (
+                <button key={s.v} title={`Стиль линии: ${s.v}`} onClick={() => onUpdate({ strokeStyle: s.v })} className={`ui-input h-8 ${(layer.strokeStyle || 'solid') === s.v ? 'text-[var(--accent)]' : ''}`}>{s.l}</button>
+              ))}
+            </div>
+          </Field>
+          <Field label="Cap">
+            <div className="grid grid-cols-3 gap-2">
+              {['butt', 'round', 'square'].map((c) => (
+                <button key={c} title={`Конец линии: ${c}`} onClick={() => onUpdate({ lineCap: c })} className={`ui-input h-8 text-[12px] ${(layer.lineCap || 'butt') === c ? 'text-[var(--accent)]' : ''}`}>{c}</button>
+              ))}
+            </div>
+          </Field>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              title="Solid color"
+              className={`flex-1 rounded-md border py-1.5 text-[12px] font-medium transition-all ${
+                (layer.fillType || 'solid') === 'solid'
+                  ? 'border-[var(--accent)] bg-[var(--accent-muted)] text-[var(--accent)]'
+                  : 'border-transparent bg-[var(--bg-input)] text-[var(--text-secondary)] hover:border-[var(--border-solid)]'
+              }`}
+              onClick={() => onUpdate({ fillType: 'solid' })}
+            >
+              solid
+            </button>
+            <button
+              title="Gradient"
+              className={`flex-1 rounded-md border py-1.5 text-[12px] font-medium transition-all ${
+                layer.fillType === 'gradient'
+                  ? 'border-[var(--accent)] bg-[var(--accent-muted)] text-[var(--accent)]'
+                  : 'border-transparent bg-[var(--bg-input)] text-[var(--text-secondary)] hover:border-[var(--border-solid)]'
+              }`}
+              onClick={() => onUpdate({ fillType: 'gradient', gradientFrom: layer.gradientFrom || '#FFFFFF', gradientTo: layer.gradientTo || '#000000', gradientDirection: layer.gradientDirection || 'horizontal' })}
+            >
+              gradient
+            </button>
+          </div>
+          {(layer.fillType || 'solid') === 'solid' ? (
+            <Field label="Color"><div className="grid grid-cols-[36px_1fr] gap-2"><input type="color" className="h-8 w-9 rounded-md" value={rgbaToHex(layer.stroke || '#FFFFFF')} onChange={(e) => onUpdate({ stroke: e.target.value })} /><input className="ui-input h-8 px-2" value={layer.stroke || '#FFFFFF'} onChange={(e) => onUpdate({ stroke: e.target.value })} /></div></Field>
+          ) : (
+            <>
+              <div className="h-3 w-full rounded-md border border-[var(--border-solid)]" style={{ background: `linear-gradient(${(layer.gradientDirection || 'horizontal') === 'vertical' ? 'to bottom' : 'to right'}, ${layer.gradientFrom || '#FFFFFF'}, ${layer.gradientTo || '#000000'})` }} />
+              <Field label="Direction">
+                <div className="grid grid-cols-2 gap-2">
+                  {[{ v: 'horizontal', l: '→' }, { v: 'vertical', l: '↓' }].map((d) => (
+                    <button key={d.v} onClick={() => onUpdate({ gradientDirection: d.v })} className={`ui-input h-8 ${(layer.gradientDirection || 'horizontal') === d.v ? 'text-[var(--accent)]' : ''}`} title={`Направление: ${d.v}`}>{d.l}</button>
+                  ))}
+                </div>
+              </Field>
+              <Field label="From"><div className="grid grid-cols-[36px_1fr] gap-2"><input type="color" className="h-8 w-9 rounded-md" value={rgbaToHex(layer.gradientFrom || '#FFFFFF')} onChange={(e) => onUpdate({ gradientFrom: e.target.value })} /><input className="ui-input h-8 px-2" value={layer.gradientFrom || '#FFFFFF'} onChange={(e) => onUpdate({ gradientFrom: e.target.value })} /></div></Field>
+              <Field label="To"><div className="grid grid-cols-[36px_1fr] gap-2"><input type="color" className="h-8 w-9 rounded-md" value={rgbaToHex(layer.gradientTo || '#000000')} onChange={(e) => onUpdate({ gradientTo: e.target.value })} /><input className="ui-input h-8 px-2" value={layer.gradientTo || '#000000'} onChange={(e) => onUpdate({ gradientTo: e.target.value })} /></div></Field>
+            </>
+          )}
+        </Section>
+      )}
+
       {(layer.type === 'text' || layer.type === 'image' || layer.type === 'logo') && (
         <Section title="EFFECTS" open={open.effects} onToggle={() => setOpen((x) => ({ ...x, effects: !x.effects }))}>
           <Field label="Shadow"><button title="Включить/выключить тень" className="ui-input h-8 w-full px-2 text-left" onClick={() => onUpdate({ shadowEnabled: !layer.shadowEnabled })}>{layer.shadowEnabled ? 'ON' : 'OFF'}</button></Field>

@@ -5,8 +5,10 @@ import {
   Copy,
   Grid2x2,
   Image,
+  ImagePlus,
   Lock,
   LockOpen,
+  Minus,
   Redo2,
   Save,
   SendToBack,
@@ -173,6 +175,33 @@ export default function EditorPage() {
   };
   const duplicateSelectedLayer = () => selected && duplicateLayerById(selected.id);
   const deleteSelectedLayer = () => selected && deleteLayer(selected.id);
+
+  const fileInputRef = useRef(null);
+  const handleStaticImageUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      addLayer({
+        id: newId(),
+        name: file.name || 'Постоянное изображение',
+        type: 'image',
+        x: Math.round((editor.width - 200) / 2),
+        y: Math.round((editor.height - 200) / 2),
+        width: 200,
+        height: 200,
+        src: dataUrl,
+        defaultImage: '',
+        fit: 'contain',
+        locked: true,
+        visible: true,
+        opacity: 100
+      });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
   const nudgeSelectedLayer = (key, step) => {
     if (!selected) return;
     updateLayer(selected.id, {
@@ -396,7 +425,7 @@ export default function EditorPage() {
           </button>
           <button title="Добавить прямоугольник" className="icon-btn h-9 w-9" onClick={() => addLayer({ id: newId(), name: 'Прямоугольник', type: 'rect', x: 120, y: 140, width: 500, height: 280, fill: '#E63946', visible: true, opacity: 100 })}><Square size={16} /></button>
           <button
-            title="Добавить изображение"
+            title="Добавить изображение (переменная)"
             className="icon-btn h-9 w-9"
             onClick={() => {
               const imageCount = layers.filter((l) => l.type === 'image' || l.type === 'logo').length;
@@ -418,6 +447,45 @@ export default function EditorPage() {
             }}
           >
             <Image size={16} />
+          </button>
+          <button
+            title="Загрузить постоянную картинку (логотип и т.п.)"
+            className="icon-btn h-9 w-9"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <ImagePlus size={16} />
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={handleStaticImageUpload}
+          />
+          <button
+            title="Добавить линию"
+            className="icon-btn h-9 w-9"
+            onClick={() => addLayer({
+              id: newId(),
+              name: 'Линия',
+              type: 'line',
+              x1: 100,
+              y1: Math.round(editor.height / 2),
+              x2: editor.width - 100,
+              y2: Math.round(editor.height / 2),
+              stroke: '#FFFFFF',
+              strokeWidth: 4,
+              strokeStyle: 'solid',
+              lineCap: 'round',
+              fillType: 'solid',
+              gradientFrom: '#FFFFFF',
+              gradientTo: '#000000',
+              gradientDirection: 'horizontal',
+              visible: true,
+              opacity: 100
+            })}
+          >
+            <Minus size={16} />
           </button>
           <button title="Добавить градиент" className="icon-btn h-9 w-9" onClick={() => addLayer({ id: newId(), name: 'Градиент', type: 'rect', x: 0, y: 700, width: editor.width, height: 650, fillType: 'gradient', gradientDirection: 'vertical', gradientFrom: '#00000000', gradientTo: '#000000cc', visible: true, opacity: 100 })}>■</button>
           <div className="my-1 h-px w-7 bg-[var(--border)]" />

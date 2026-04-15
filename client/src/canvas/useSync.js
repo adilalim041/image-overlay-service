@@ -63,10 +63,27 @@ function makeImagePattern() {
 }
 
 function layerSize(layer) {
+  if (layer.type === 'line') {
+    const x1 = Number(layer.x1) || 0;
+    const y1 = Number(layer.y1) || 0;
+    const x2 = Number(layer.x2) || 100;
+    const y2 = Number(layer.y2) || 0;
+    return {
+      width: Math.max(2, Math.abs(x2 - x1)),
+      height: Math.max(2, Math.abs(y2 - y1))
+    };
+  }
   return {
     width: layer.type === 'text' ? layer.width || 240 : layer.width || 120,
     height: layer.height || 80
   };
+}
+
+function lineDashArray(layer) {
+  const sw = Number(layer.strokeWidth) || 2;
+  if (layer.strokeStyle === 'dashed') return [sw * 4, sw * 2];
+  if (layer.strokeStyle === 'dotted') return [sw, sw * 2];
+  return null;
 }
 
 function setBack(canvas, obj) {
@@ -179,6 +196,36 @@ export function useSync(canvasRef, { layers, selectedLayerId, showGrid, template
     layers.forEach((layer) => {
       if (layer.visible === false) {
         if (existing[layer.id]) canvas.remove(existing[layer.id]);
+        return;
+      }
+
+      if (layer.type === 'line') {
+        const x1 = Number(layer.x1) || 0;
+        const y1 = Number(layer.y1) || 0;
+        const x2 = Number(layer.x2) || 100;
+        const y2 = Number(layer.y2) || 0;
+        const lineProps = {
+          ...controlProps(),
+          stroke: layer.stroke || '#FFFFFF',
+          strokeWidth: Number(layer.strokeWidth) || 2,
+          strokeLineCap: layer.lineCap || 'butt',
+          strokeDashArray: lineDashArray(layer),
+          opacity: (layer.opacity ?? 100) / 100,
+          selectable: !layer.locked,
+          evented: !layer.locked,
+          hasControls: !layer.locked
+        };
+        const existingObj = existing[layer.id];
+        if (existingObj && existingObj.type === 'line') {
+          existingObj.set({ ...lineProps, x1, y1, x2, y2 });
+          existingObj.setCoords();
+        } else {
+          if (existingObj) canvas.remove(existingObj);
+          const lineObj = new Line([x1, y1, x2, y2], lineProps);
+          lineObj.set('data', { layerId: layer.id });
+          lineObj.clipPath = templateClip;
+          canvas.add(lineObj);
+        }
         return;
       }
 

@@ -149,6 +149,42 @@ function renderTextLayer(layer) {
   return groupAttrs ? `<g${groupAttrs}>${paths.join("")}</g>` : paths.join("");
 }
 
+function renderLineLayer(layer) {
+  const x1 = Number(layer.x1);
+  const y1 = Number(layer.y1);
+  const x2 = Number(layer.x2);
+  const y2 = Number(layer.y2);
+  if (Number.isNaN(x1) || Number.isNaN(y1) || Number.isNaN(x2) || Number.isNaN(y2)) return "";
+
+  const strokeWidth = Number(layer.strokeWidth) || 2;
+  const opacity = (layer.opacity ?? 100) / 100;
+  const lineCap = ["round", "butt", "square"].includes(layer.lineCap) ? layer.lineCap : "butt";
+
+  let strokeDasharray = "";
+  if (layer.strokeStyle === "dashed") {
+    strokeDasharray = ` stroke-dasharray="${strokeWidth * 4} ${strokeWidth * 2}"`;
+  } else if (layer.strokeStyle === "dotted") {
+    strokeDasharray = ` stroke-dasharray="${strokeWidth} ${strokeWidth * 2}"`;
+  }
+
+  const id = `line-${layer.id || Math.random().toString(36).slice(2)}`;
+  let stroke = escapeXml(layer.stroke || "#ffffff");
+  let defs = "";
+
+  if (layer.fillType === "gradient" && layer.gradientFrom && layer.gradientTo) {
+    const gradId = `grad-${id}`;
+    const dir = layer.gradientDirection || "horizontal";
+    const coords = dir === "vertical"
+      ? 'x1="0%" y1="0%" x2="0%" y2="100%"'
+      : 'x1="0%" y1="0%" x2="100%" y2="0%"';
+    defs = `<defs><linearGradient id="${gradId}" ${coords}><stop offset="0%" stop-color="${escapeXml(layer.gradientFrom)}" /><stop offset="100%" stop-color="${escapeXml(layer.gradientTo)}" /></linearGradient></defs>`;
+    stroke = `url(#${gradId})`;
+  }
+
+  const line = `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stroke}" stroke-width="${strokeWidth}" stroke-linecap="${lineCap}"${strokeDasharray} opacity="${opacity}" />`;
+  return defs + line;
+}
+
 function renderRectLayer(layer) {
   const x = Number(layer.x) || 0;
   const y = Number(layer.y) || 0;
@@ -433,6 +469,17 @@ export async function renderTemplate(templateInput, data = {}, options = {}) {
       }
 
       const svgContent = renderTextLayer(resolved);
+      if (svgContent) {
+        const svgBuffer = Buffer.from(
+          `<svg width="${tw}" height="${th}" xmlns="http://www.w3.org/2000/svg">${svgContent}</svg>`
+        );
+        composites.push({ input: svgBuffer, left: 0, top: 0 });
+      }
+      continue;
+    }
+
+    if (layer.type === "line") {
+      const svgContent = renderLineLayer(resolved);
       if (svgContent) {
         const svgBuffer = Buffer.from(
           `<svg width="${tw}" height="${th}" xmlns="http://www.w3.org/2000/svg">${svgContent}</svg>`
