@@ -1,10 +1,12 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useCanvasSetup } from '../canvas/useCanvasSetup';
 import { useInteraction } from '../canvas/useInteraction';
 import { usePan } from '../canvas/usePan';
 import { useSnap } from '../canvas/useSnap';
 import { useSync } from '../canvas/useSync';
 import { useZoom } from '../canvas/useZoom';
+
+const SNAP_PX = 12;
 
 export default function Canvas({
   layers,
@@ -24,6 +26,8 @@ export default function Canvas({
   const containerRef = useRef(null);
   const elementRef = useRef(null);
   const guidesRef = useRef([]);
+  const [vt, setVt] = useState([1, 0, 0, 1, 0, 0]);
+  const dragRef = useRef(null);
 
   const canvasRef = useCanvasSetup(containerRef, elementRef, {
     templateWidth,
@@ -41,6 +45,57 @@ export default function Canvas({
     onLayerResize,
     onContextMenu,
     onAltDuplicate
+  });
+
+  useEffect(() => {
+    const c = canvasRef.current;
+    if (!c) return;
+    const sync = () => setVt([...(c.viewportTransform || [1, 0, 0, 1, 0, 0])]);
+    sync();
+    c.on('after:render', sync);
+    return () => c.off('after:render', sync);
+  }, [canvasRef, zoom, fitTrigger]);
+
+  const selectedLine = layers.find((l) => l.id === selectedLayerId && l.type === 'line' && !l.locked);
+
+  const onEndpointDown = (which) => (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!selectedLine) return;
+    dragRef.current = { which, layerId: selectedLine.id };
+    const onMove = (mv) => {
+      const cur = dragRef.current;
+      if (!cur) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const z = vt[0] || 1;
+      const tx = vt[4] || 0;
+      const ty = vt[5] || 0;
+      const canvasX = (mv.clientX - rect.left - tx) / z;
+      const canvasY = (mv.clientY - rect.top - ty) / z;
+      const layer = layers.find((l) => l.id === cur.layerId);
+      if (!layer) return;
+      const otherX = cur.which === 'start' ? Number(layer.x2) : Number(layer.x1);
+      const otherY = cur.which === 'start' ? Number(layer.y2) : Number(layer.y1);
+      let nx = Math.round(canvasX);
+      let ny = Math.round(canvasY);
+      const snap = SNAP_PX / z;
+      if (Math.abs(ny - otherY) < snap) ny = otherY;
+      if (Math.abs(nx - otherX) < snap) nx = otherX;
+      const patch = cur.which === 'start' ? { x1: nx, y1: ny } : { x2: nx, y2: ny };
+      onLayerMove?.(cur.layerId, patch);
+    };
+    const onUp = () => {
+      dragRef.current = null;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
+  const handleScreen = (cx, cy) => ({
+    left: cx * (vt[0] || 1) + (vt[4] || 0),
+    top: cy * (vt[0] || 1) + (vt[5] || 0)
   });
 
   return (
@@ -61,6 +116,33 @@ export default function Canvas({
         >
           {rotationTooltip.angle}°
         </div>
+      )}
+      {selectedLine && (
+        <>
+          {[{ k: 'start', cx: Number(selectedLine.x1) || 0, cy: Number(selectedLine.y1) || 0 }, { k: 'end', cx: Number(selectedLine.x2) || 0, cy: Number(selectedLine.y2) || 0 }].map((ep) => {
+            const pos = handleScreen(ep.cx, ep.cy);
+            return (
+              <div
+                key={ep.k}
+                onMouseDown={onEndpointDown(ep.k)}
+                className="absolute z-50"
+                style={{
+                  left: pos.left,
+                  top: pos.top,
+                  width: 14,
+                  height: 14,
+                  marginLeft: -7,
+                  marginTop: -7,
+                  background: '#ffffff',
+                  border: '2px solid #E63946',
+                  borderRadius: '50%',
+                  cursor: 'crosshair',
+                  boxShadow: '0 0 0 1px rgba(0,0,0,0.4)'
+                }}
+              />
+            );
+          })}
+        </>
       )}
     </div>
   );

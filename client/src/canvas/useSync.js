@@ -266,30 +266,23 @@ export function useSync(canvasRef, { layers, selectedLayerId, showGrid, template
           opacity: (layer.opacity ?? 100) / 100,
           selectable: !layer.locked,
           evented: !layer.locked,
-          hasControls: !layer.locked,
+          hasControls: false,
           hasBorders: true,
           borderColor: '#E63946',
           borderDashArray: [6, 3],
           padding: 6,
-          cornerColor: '#ffffff',
-          cornerStrokeColor: '#1a1a1a',
-          cornerSize: 12,
-          cornerStyle: 'circle',
-          transparentCorners: false,
           lockScalingFlip: true,
-          lockScalingY: !isVertical,
-          lockScalingX: isVertical
+          lockRotation: true,
+          lockScalingX: true,
+          lockScalingY: true
         };
+        // isVertical reserved for future per-axis logic
+        void isVertical;
         const existingObj = existing[layer.id];
         if (existingObj && existingObj.type === 'line') {
           canvas.remove(existingObj);
         }
         const lineObj = new Line([x1, y1, x2, y2], lineProps);
-        if (isVertical) {
-          lineObj.setControlsVisibility({ tl: false, tr: false, bl: false, br: false, ml: false, mr: false, mt: true, mb: true, mtr: false });
-        } else {
-          lineObj.setControlsVisibility({ tl: false, tr: false, bl: false, br: false, ml: true, mr: true, mt: false, mb: false, mtr: false });
-        }
         lineObj.set('data', { layerId: layer.id, origLine: { x1, y1, x2, y2 } });
         lineObj.clipPath = templateClip;
         canvas.add(lineObj);
