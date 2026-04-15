@@ -157,6 +157,16 @@ function renderTextLayer(layer) {
   return groupAttrs ? `<g${groupAttrs}>${paths.join("")}</g>` : paths.join("");
 }
 
+function hexToStopAttrs(color) {
+  if (typeof color !== "string") return `stop-color="${escapeXml(color || "#ffffff")}"`;
+  if (color.startsWith("#") && color.length === 9) {
+    const baseHex = color.slice(0, 7);
+    const alpha = parseInt(color.slice(7, 9), 16) / 255;
+    return `stop-color="${escapeXml(baseHex)}" stop-opacity="${alpha.toFixed(3)}"`;
+  }
+  return `stop-color="${escapeXml(color)}"`;
+}
+
 function renderLineLayer(layer) {
   const x1 = Number(layer.x1);
   const y1 = Number(layer.y1);
@@ -190,7 +200,9 @@ function renderLineLayer(layer) {
     if (dir === "vertical") coords = `x1="${minX}" y1="${minY}" x2="${minX}" y2="${maxY}"`;
     else if (dir === "diagonal") coords = `x1="${minX}" y1="${minY}" x2="${maxX}" y2="${maxY}"`;
     else coords = `x1="${minX}" y1="${minY}" x2="${maxX}" y2="${minY}"`;
-    defs = `<defs><linearGradient id="${gradId}" gradientUnits="userSpaceOnUse" ${coords}><stop offset="0%" stop-color="${escapeXml(layer.gradientFrom)}" /><stop offset="100%" stop-color="${escapeXml(layer.gradientTo)}" /></linearGradient></defs>`;
+    const fromStop = hexToStopAttrs(layer.gradientFrom);
+    const toStop = hexToStopAttrs(layer.gradientTo);
+    defs = `<defs><linearGradient id="${gradId}" gradientUnits="userSpaceOnUse" ${coords}><stop offset="0%" ${fromStop} /><stop offset="100%" ${toStop} /></linearGradient></defs>`;
     stroke = `url(#${gradId})`;
   }
 

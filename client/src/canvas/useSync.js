@@ -115,6 +115,18 @@ function loadStaticImage(canvas, layer, props, clipPath, w, h) {
   html.src = layer.src;
 }
 
+function hexWithAlphaToRgba(color) {
+  if (typeof color !== 'string') return color;
+  if (color.startsWith('#') && color.length === 9) {
+    const r = parseInt(color.slice(1, 3), 16);
+    const g = parseInt(color.slice(3, 5), 16);
+    const b = parseInt(color.slice(5, 7), 16);
+    const a = parseInt(color.slice(7, 9), 16) / 255;
+    return `rgba(${r}, ${g}, ${b}, ${a.toFixed(3)})`;
+  }
+  return color;
+}
+
 function lineGradient(layer, x1, y1, x2, y2) {
   if (layer.fillType !== 'gradient' || !layer.gradientFrom || !layer.gradientTo) return null;
   const dir = layer.gradientDirection || 'horizontal';
@@ -123,16 +135,16 @@ function lineGradient(layer, x1, y1, x2, y2) {
   const minY = Math.min(y1, y2);
   const maxY = Math.max(y1, y2);
   let coords;
-  if (dir === 'vertical') coords = { x1: 0, y1: minY, x2: 0, y2: maxY };
+  if (dir === 'vertical') coords = { x1: minX, y1: minY, x2: minX, y2: maxY };
   else if (dir === 'diagonal') coords = { x1: minX, y1: minY, x2: maxX, y2: maxY };
-  else coords = { x1: minX, y1: 0, x2: maxX, y2: 0 };
+  else coords = { x1: minX, y1: minY, x2: maxX, y2: minY };
   return new Gradient({
     type: 'linear',
     gradientUnits: 'pixels',
     coords,
     colorStops: [
-      { offset: 0, color: layer.gradientFrom },
-      { offset: 1, color: layer.gradientTo }
+      { offset: 0, color: hexWithAlphaToRgba(layer.gradientFrom) },
+      { offset: 1, color: hexWithAlphaToRgba(layer.gradientTo) }
     ]
   });
 }

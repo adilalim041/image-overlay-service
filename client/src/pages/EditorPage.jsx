@@ -269,25 +269,42 @@ export default function EditorPage() {
     });
   };
 
-  const undo = () =>
+  const undo = () => {
+    if (historyTimerRef.current) {
+      clearTimeout(historyTimerRef.current);
+      historyTimerRef.current = null;
+    }
+    // If there's a pending (un-debounced) state, treat it as the step to undo:
+    // restore that older state and put current into the future stack.
+    if (pendingStateRef.current) {
+      const before = pendingStateRef.current;
+      const current = editorRef.current;
+      pendingStateRef.current = null;
+      setEditor(before);
+      setHistory((h) => ({ past: h.past, future: [current, ...h.future] }));
+      return;
+    }
     setHistory((h) => {
       if (!h.past.length) return h;
-      if (historyTimerRef.current) clearTimeout(historyTimerRef.current);
-      pendingStateRef.current = null;
       const prev = h.past[h.past.length - 1];
       setEditor(prev);
       return { past: h.past.slice(0, -1), future: [editorRef.current, ...h.future] };
     });
+  };
 
-  const redo = () =>
+  const redo = () => {
+    if (historyTimerRef.current) {
+      clearTimeout(historyTimerRef.current);
+      historyTimerRef.current = null;
+    }
+    pendingStateRef.current = null;
     setHistory((h) => {
       if (!h.future.length) return h;
-      if (historyTimerRef.current) clearTimeout(historyTimerRef.current);
-      pendingStateRef.current = null;
       const next = h.future[0];
       setEditor(next);
       return { past: [...h.past, editorRef.current], future: h.future.slice(1) };
     });
+  };
 
   const saveTemplate = async () => {
     const templateData = {
