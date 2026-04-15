@@ -12,19 +12,27 @@ export class RenderValidationError extends Error {
 
 function wrapText(text, font, fontSize, maxWidth) {
   if (!text || !font) return [text || ""];
-  const words = String(text).trim().split(/\s+/).filter(Boolean);
-  if (!words.length) return [""];
+  // Respect explicit line breaks from user input: split on \n first,
+  // then word-wrap each hard-break segment within maxWidth.
+  const hardLines = String(text).split(/\r?\n/);
   const lines = [];
-  let current = "";
-  for (const word of words) {
-    const test = current ? `${current} ${word}` : word;
-    if (font.getAdvanceWidth(test, fontSize) <= maxWidth) current = test;
-    else {
-      if (current) lines.push(current);
-      current = word;
+  for (const hardLine of hardLines) {
+    const words = hardLine.split(/\s+/).filter(Boolean);
+    if (!words.length) {
+      lines.push("");
+      continue;
     }
+    let current = "";
+    for (const word of words) {
+      const test = current ? `${current} ${word}` : word;
+      if (font.getAdvanceWidth(test, fontSize) <= maxWidth) current = test;
+      else {
+        if (current) lines.push(current);
+        current = word;
+      }
+    }
+    if (current) lines.push(current);
   }
-  if (current) lines.push(current);
   return lines.length ? lines : [""];
 }
 
