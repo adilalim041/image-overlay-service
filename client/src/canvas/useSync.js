@@ -373,17 +373,33 @@ export function useSync(canvasRef, { layers, selectedLayerId, showGrid, template
       }
 
       if (existingObj) {
-        existingObj.set({ ...props, clipPath: templateClip });
-        if (layer.type === 'rect') {
-          existingObj.set({ fill: rectFill(layer), width: w, height: h, scaleX: 1, scaleY: 1 });
-        } else if (isStaticImage && existingObj.data?.imgSrc === layer.src) {
-          existingObj.set({ width: w, height: h, scaleX: 1, scaleY: 1 });
+        if (isStaticImage && existingObj.data?.imgSrc === layer.src) {
+          // Same image already loaded — only sync position/opacity/rotation.
+          // Do NOT touch width/height/scaleX/scaleY (would override natural dims).
+          const nw = (existingObj.getElement?.()?.naturalWidth) || existingObj.width || w;
+          const nh = (existingObj.getElement?.()?.naturalHeight) || existingObj.height || h;
+          existingObj.set({
+            left: (layer.x || 0) + w / 2,
+            top: (layer.y || 0) + h / 2,
+            originX: 'center',
+            originY: 'center',
+            angle: layer.rotation || 0,
+            opacity: (layer.opacity ?? 100) / 100,
+            selectable: !layer.locked,
+            evented: !layer.locked,
+            hasControls: !layer.locked,
+            scaleX: w / nw,
+            scaleY: h / nh,
+            clipPath: templateClip
+          });
         } else if (isStaticImage) {
           canvas.remove(existingObj);
           delete existing[layer.id];
           loadStaticImage(canvas, layer, props, templateClip, w, h);
+        } else if (layer.type === 'rect') {
+          existingObj.set({ ...props, clipPath: templateClip, fill: rectFill(layer), width: w, height: h, scaleX: 1, scaleY: 1 });
         } else {
-          existingObj.set({ fill: makeImagePattern(), width: w, height: h, scaleX: 1, scaleY: 1 });
+          existingObj.set({ ...props, clipPath: templateClip, fill: makeImagePattern(), width: w, height: h, scaleX: 1, scaleY: 1 });
         }
       } else {
         if (isStaticImage) {
