@@ -118,12 +118,18 @@ function loadStaticImage(canvas, layer, props, clipPath, w, h) {
 function lineGradient(layer, x1, y1, x2, y2) {
   if (layer.fillType !== 'gradient' || !layer.gradientFrom || !layer.gradientTo) return null;
   const dir = layer.gradientDirection || 'horizontal';
+  const minX = Math.min(x1, x2);
+  const maxX = Math.max(x1, x2);
+  const minY = Math.min(y1, y2);
+  const maxY = Math.max(y1, y2);
+  let coords;
+  if (dir === 'vertical') coords = { x1: 0, y1: minY, x2: 0, y2: maxY };
+  else if (dir === 'diagonal') coords = { x1: minX, y1: minY, x2: maxX, y2: maxY };
+  else coords = { x1: minX, y1: 0, x2: maxX, y2: 0 };
   return new Gradient({
     type: 'linear',
     gradientUnits: 'pixels',
-    coords: dir === 'vertical'
-      ? { x1: 0, y1: Math.min(y1, y2), x2: 0, y2: Math.max(y1, y2) }
-      : { x1: Math.min(x1, x2), y1: 0, x2: Math.max(x1, x2), y2: 0 },
+    coords,
     colorStops: [
       { offset: 0, color: layer.gradientFrom },
       { offset: 1, color: layer.gradientTo }

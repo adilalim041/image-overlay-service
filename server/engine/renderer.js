@@ -176,7 +176,9 @@ function renderLineLayer(layer) {
     const dir = layer.gradientDirection || "horizontal";
     const coords = dir === "vertical"
       ? 'x1="0%" y1="0%" x2="0%" y2="100%"'
-      : 'x1="0%" y1="0%" x2="100%" y2="0%"';
+      : dir === "diagonal"
+        ? 'x1="0%" y1="0%" x2="100%" y2="100%"'
+        : 'x1="0%" y1="0%" x2="100%" y2="0%"';
     defs = `<defs><linearGradient id="${gradId}" ${coords}><stop offset="0%" stop-color="${escapeXml(layer.gradientFrom)}" /><stop offset="100%" stop-color="${escapeXml(layer.gradientTo)}" /></linearGradient></defs>`;
     stroke = `url(#${gradId})`;
   }

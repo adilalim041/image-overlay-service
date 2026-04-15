@@ -306,20 +306,46 @@ export default function PropertiesPanel({ layer, onUpdate, onDelete, onAlign }) 
           </div>
           {(layer.fillType || 'solid') === 'solid' ? (
             <Field label="Color"><div className="grid grid-cols-[36px_1fr] gap-2"><input type="color" className="h-8 w-9 rounded-md" value={rgbaToHex(layer.stroke || '#FFFFFF')} onChange={(e) => onUpdate({ stroke: e.target.value })} /><input className="ui-input h-8 px-2" value={layer.stroke || '#FFFFFF'} onChange={(e) => onUpdate({ stroke: e.target.value })} /></div></Field>
-          ) : (
-            <>
-              <div className="h-3 w-full rounded-md border border-[var(--border-solid)]" style={{ background: `linear-gradient(${(layer.gradientDirection || 'horizontal') === 'vertical' ? 'to bottom' : 'to right'}, ${layer.gradientFrom || '#FFFFFF'}, ${layer.gradientTo || '#000000'})` }} />
-              <Field label="Direction">
-                <div className="grid grid-cols-2 gap-2">
-                  {[{ v: 'horizontal', l: '→' }, { v: 'vertical', l: '↓' }].map((d) => (
-                    <button key={d.v} onClick={() => onUpdate({ gradientDirection: d.v })} className={`ui-input h-8 ${(layer.gradientDirection || 'horizontal') === d.v ? 'text-[var(--accent)]' : ''}`} title={`Направление: ${d.v}`}>{d.l}</button>
-                  ))}
+          ) : (() => {
+            const lFrom = layer.gradientFrom || '#FFFFFFff';
+            const lTo = layer.gradientTo || '#000000ff';
+            const lDir = layer.gradientDirection || 'horizontal';
+            const preview = (() => {
+              if (lDir === 'horizontal') return `linear-gradient(to right, ${lFrom}, ${lTo})`;
+              if (lDir === 'vertical') return `linear-gradient(to bottom, ${lFrom}, ${lTo})`;
+              if (lDir === 'diagonal') return `linear-gradient(135deg, ${lFrom}, ${lTo})`;
+              return `linear-gradient(to right, ${lFrom}, ${lTo})`;
+            })();
+            return (
+              <>
+                <div className="h-8 w-full rounded-md border border-[var(--border-solid)]" style={{ background: preview }} />
+                <div className="mb-2">
+                  <label className="mb-1 block text-[11px] text-[var(--text-secondary)]">Style</label>
+                  <div className="flex gap-1">
+                    {[{ dir: 'horizontal', css: 'to right' }, { dir: 'vertical', css: 'to bottom' }, { dir: 'diagonal', css: '135deg' }].map(({ dir, css }) => (
+                      <button key={dir} title={`Градиент: ${dir}`} className={`h-9 w-9 rounded-md border text-[14px] transition-all ${lDir === dir ? 'border-[var(--accent)] bg-[var(--accent-muted)]' : 'border-[var(--border-solid)] bg-[var(--bg-input)] hover:border-[var(--accent)]'}`} style={{ background: `linear-gradient(${css}, ${lFrom}, ${lTo})` }} onClick={() => onUpdate({ gradientDirection: dir })} />
+                    ))}
+                  </div>
                 </div>
-              </Field>
-              <Field label="From"><div className="grid grid-cols-[36px_1fr] gap-2"><input type="color" className="h-8 w-9 rounded-md" value={rgbaToHex(layer.gradientFrom || '#FFFFFF')} onChange={(e) => onUpdate({ gradientFrom: e.target.value })} /><input className="ui-input h-8 px-2" value={layer.gradientFrom || '#FFFFFF'} onChange={(e) => onUpdate({ gradientFrom: e.target.value })} /></div></Field>
-              <Field label="To"><div className="grid grid-cols-[36px_1fr] gap-2"><input type="color" className="h-8 w-9 rounded-md" value={rgbaToHex(layer.gradientTo || '#000000')} onChange={(e) => onUpdate({ gradientTo: e.target.value })} /><input className="ui-input h-8 px-2" value={layer.gradientTo || '#000000'} onChange={(e) => onUpdate({ gradientTo: e.target.value })} /></div></Field>
-            </>
-          )}
+                <div className="mb-2">
+                  <label className="text-[11px] text-[var(--text-secondary)]">From</label>
+                  <div className="flex items-center gap-2">
+                    <input type="color" value={rgbaToHex(lFrom)} onChange={(e) => onUpdate({ gradientFrom: hexToRgba(e.target.value, getAlpha(lFrom)) })} className="h-8 w-10 rounded border-none bg-transparent" />
+                    <input type="range" min="0" max="100" value={Math.round(getAlpha(lFrom) * 100)} style={rangeStyle(0, 100, Math.round(getAlpha(lFrom) * 100))} onChange={(e) => onUpdate({ gradientFrom: hexToRgba(rgbaToHex(lFrom), Number(e.target.value) / 100) })} className="slider flex-1" title="Прозрачность" />
+                    <span className="w-8 text-right text-[11px] text-[var(--text-muted)]">{Math.round(getAlpha(lFrom) * 100)}%</span>
+                  </div>
+                </div>
+                <div className="mb-2">
+                  <label className="text-[11px] text-[var(--text-secondary)]">To</label>
+                  <div className="flex items-center gap-2">
+                    <input type="color" value={rgbaToHex(lTo)} onChange={(e) => onUpdate({ gradientTo: hexToRgba(e.target.value, getAlpha(lTo)) })} className="h-8 w-10 rounded border-none bg-transparent" />
+                    <input type="range" min="0" max="100" value={Math.round(getAlpha(lTo) * 100)} style={rangeStyle(0, 100, Math.round(getAlpha(lTo) * 100))} onChange={(e) => onUpdate({ gradientTo: hexToRgba(rgbaToHex(lTo), Number(e.target.value) / 100) })} className="slider flex-1" title="Прозрачность" />
+                    <span className="w-8 text-right text-[11px] text-[var(--text-muted)]">{Math.round(getAlpha(lTo) * 100)}%</span>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
         </Section>
       )}
 

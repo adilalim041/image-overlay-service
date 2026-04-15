@@ -51,9 +51,12 @@ export function useInteraction(canvasRef, { onSelectLayer, onLayerMove, onLayerR
       const w = Math.round((obj.width || 0) * (obj.scaleX || 1));
       const h = Math.round((obj.height || 0) * (obj.scaleY || 1));
 
+      const offX = obj.originX === 'left' ? 0 : w / 2;
+      const offY = obj.originY === 'top' ? 0 : h / 2;
+
       onLayerMove?.(id, {
-        x: Math.round((obj.left || 0) - w / 2),
-        y: Math.round((obj.top || 0) - h / 2),
+        x: Math.round((obj.left || 0) - offX),
+        y: Math.round((obj.top || 0) - offY),
         rotation: Math.round(obj.angle || 0)
       });
       onLayerResize?.(id, { width: w, height: h });
