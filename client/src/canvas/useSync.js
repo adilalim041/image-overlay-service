@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Gradient, Line, Pattern, Rect, Textbox } from 'fabric';
+import { FabricImage, Gradient, Line, Pattern, Rect, Textbox } from 'fabric';
 
 const GRID_STEP = 20;
 
@@ -205,7 +205,6 @@ export function useSync(canvasRef, { layers, selectedLayerId, showGrid, template
         const x2 = Number(layer.x2) || 100;
         const y2 = Number(layer.y2) || 0;
         const lineProps = {
-          ...controlProps(),
           stroke: layer.stroke || '#FFFFFF',
           strokeWidth: Number(layer.strokeWidth) || 2,
           strokeLineCap: layer.lineCap || 'butt',
@@ -213,19 +212,20 @@ export function useSync(canvasRef, { layers, selectedLayerId, showGrid, template
           opacity: (layer.opacity ?? 100) / 100,
           selectable: !layer.locked,
           evented: !layer.locked,
-          hasControls: !layer.locked
+          hasControls: false,
+          hasBorders: true,
+          borderColor: '#E63946',
+          borderDashArray: [6, 3],
+          padding: 4
         };
         const existingObj = existing[layer.id];
         if (existingObj && existingObj.type === 'line') {
-          existingObj.set({ ...lineProps, x1, y1, x2, y2 });
-          existingObj.setCoords();
-        } else {
-          if (existingObj) canvas.remove(existingObj);
-          const lineObj = new Line([x1, y1, x2, y2], lineProps);
-          lineObj.set('data', { layerId: layer.id });
-          lineObj.clipPath = templateClip;
-          canvas.add(lineObj);
+          canvas.remove(existingObj);
         }
+        const lineObj = new Line([x1, y1, x2, y2], lineProps);
+        lineObj.set('data', { layerId: layer.id, origLine: { x1, y1, x2, y2 } });
+        lineObj.clipPath = templateClip;
+        canvas.add(lineObj);
         return;
       }
 
@@ -252,6 +252,11 @@ export function useSync(canvasRef, { layers, selectedLayerId, showGrid, template
       };
 
       const existingObj = existing[layer.id];
+      const isStaticImage = (layer.type === 'image' || layer.type === 'logo')
+        && typeof layer.src === 'string'
+        && layer.src.length > 0
+        && !layer.src.includes('{{');
+
       if (existingObj) {
         existingObj.set({ ...props, clipPath: templateClip });
         if (layer.type === 'text') {
@@ -271,6 +276,19 @@ export function useSync(canvasRef, { layers, selectedLayerId, showGrid, template
           });
         } else if (layer.type === 'rect') {
           existingObj.set({ fill: rectFill(layer), width: w, height: h, scaleX: 1, scaleY: 1 });
+        } else if (isStaticImage && existingObj.data?.imgSrc !== layer.src) {
+          canvas.remove(existingObj);
+          delete existing[layer.id];
+          FabricImage.fromURL(layer.src, { crossOrigin: 'anonymous' }).then((img) => {
+            img.set({ ...props, clipPath: templateClip });
+            img.scaleX = w / (img.width || w);
+            img.scaleY = h / (img.height || h);
+            img.set('data', { layerId: layer.id, imgSrc: layer.src });
+            canvas.add(img);
+            canvas.requestRenderAll();
+          }).catch(() => {});
+        } else if (isStaticImage) {
+          existingObj.set({ width: w, height: h, scaleX: 1, scaleY: 1 });
         } else {
           existingObj.set({ fill: makeImagePattern(), width: w, height: h, scaleX: 1, scaleY: 1 });
         }
@@ -289,6 +307,17 @@ export function useSync(canvasRef, { layers, selectedLayerId, showGrid, template
             fontFamily: layer.fontFamily || 'sans-serif',
             editable: false
           });
+        } else if (isStaticImage) {
+          FabricImage.fromURL(layer.src, { crossOrigin: 'anonymous' }).then((img) => {
+            img.set({ ...props, clipPath: templateClip });
+            img.scaleX = w / (img.width || w);
+            img.scaleY = h / (img.height || h);
+            if (img.controls?.mtr) img.controls.mtr.offsetY = -30;
+            img.set('data', { layerId: layer.id, imgSrc: layer.src });
+            canvas.add(img);
+            canvas.requestRenderAll();
+          }).catch(() => {});
+          return;
         } else if (layer.type === 'image' || layer.type === 'logo') {
           obj = new Rect({ ...props, width: w, height: h, fill: makeImagePattern() });
         } else {

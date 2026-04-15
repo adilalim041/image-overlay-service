@@ -23,6 +23,25 @@ export function useInteraction(canvasRef, { onSelectLayer, onLayerMove, onLayerR
       const id = obj?.data?.layerId;
       if (!id || !obj) return;
 
+      if (obj.type === 'line') {
+        const orig = obj.data?.origLine;
+        if (orig) {
+          const minX = Math.min(orig.x1, orig.x2);
+          const minY = Math.min(orig.y1, orig.y2);
+          const dx = Math.round((obj.left || 0) - minX);
+          const dy = Math.round((obj.top || 0) - minY);
+          onLayerMove?.(id, {
+            x1: orig.x1 + dx,
+            y1: orig.y1 + dy,
+            x2: orig.x2 + dx,
+            y2: orig.y2 + dy
+          });
+        }
+        setSizeTooltip(null);
+        setRotationTooltip(null);
+        return;
+      }
+
       const w = Math.round((obj.width || 0) * (obj.scaleX || 1));
       const h = Math.round((obj.height || 0) * (obj.scaleY || 1));
 
