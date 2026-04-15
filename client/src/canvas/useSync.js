@@ -137,6 +137,13 @@ function lineGradient(layer, x1, y1, x2, y2) {
   });
 }
 
+function applyTextTransform(text, transform) {
+  if (!transform || transform === 'none') return text;
+  if (transform === 'uppercase') return text.toUpperCase();
+  if (transform === 'lowercase') return text.toLowerCase();
+  return text;
+}
+
 function lineDashArray(layer) {
   const sw = Number(layer.strokeWidth) || 2;
   if (layer.strokeStyle === 'dashed') return [sw * 4, sw * 2];
@@ -337,11 +344,12 @@ export function useSync(canvasRef, { layers, selectedLayerId, showGrid, template
           evented: !layer.locked,
           hasControls: !layer.locked
         };
+        const displayText = applyTextTransform(layer.text || '', layer.textTransform);
         if (existingObj) {
           existingObj.set({
             ...textProps,
             clipPath: templateClip,
-            text: layer.text || '',
+            text: displayText,
             fill: layer.fill || '#ffffff',
             fontSize: layer.fontSize || 32,
             textAlign: layer.align || 'left',
@@ -353,7 +361,7 @@ export function useSync(canvasRef, { layers, selectedLayerId, showGrid, template
             scaleY: 1
           });
         } else {
-          const tb = new Textbox(layer.text || '', {
+          const tb = new Textbox(displayText, {
             ...textProps,
             fill: layer.fill || '#ffffff',
             fontSize: layer.fontSize || 32,
