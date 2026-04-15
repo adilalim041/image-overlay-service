@@ -79,6 +79,38 @@ function layerSize(layer) {
   };
 }
 
+function loadStaticImage(canvas, layer, props, clipPath, w, h) {
+  if (typeof window === 'undefined') return;
+  const html = new window.Image();
+  html.onload = () => {
+    const fImg = new FabricImage(html, {
+      ...props,
+      clipPath,
+      scaleX: w / (html.naturalWidth || w),
+      scaleY: h / (html.naturalHeight || h)
+    });
+    delete fImg.width;
+    delete fImg.height;
+    if (fImg.controls?.mtr) fImg.controls.mtr.offsetY = -30;
+    fImg.set('data', { layerId: layer.id, imgSrc: layer.src });
+    canvas.add(fImg);
+    canvas.requestRenderAll();
+  };
+  html.onerror = () => {
+    const placeholder = new Rect({
+      ...props,
+      width: w,
+      height: h,
+      fill: makeImagePattern(),
+      clipPath
+    });
+    placeholder.set('data', { layerId: layer.id });
+    canvas.add(placeholder);
+    canvas.requestRenderAll();
+  };
+  html.src = layer.src;
+}
+
 function lineDashArray(layer) {
   const sw = Number(layer.strokeWidth) || 2;
   if (layer.strokeStyle === 'dashed') return [sw * 4, sw * 2];
@@ -212,17 +244,24 @@ export function useSync(canvasRef, { layers, selectedLayerId, showGrid, template
           opacity: (layer.opacity ?? 100) / 100,
           selectable: !layer.locked,
           evented: !layer.locked,
-          hasControls: false,
+          hasControls: !layer.locked,
           hasBorders: true,
           borderColor: '#E63946',
           borderDashArray: [6, 3],
-          padding: 4
+          padding: 4,
+          cornerColor: '#ffffff',
+          cornerStrokeColor: '#1a1a1a',
+          cornerSize: 10,
+          cornerStyle: 'circle',
+          transparentCorners: false,
+          lockScalingFlip: true
         };
         const existingObj = existing[layer.id];
         if (existingObj && existingObj.type === 'line') {
           canvas.remove(existingObj);
         }
         const lineObj = new Line([x1, y1, x2, y2], lineProps);
+        lineObj.setControlsVisibility({ tl: true, tr: true, bl: true, br: true, ml: true, mr: true, mt: false, mb: false, mtr: false });
         lineObj.set('data', { layerId: layer.id, origLine: { x1, y1, x2, y2 } });
         lineObj.clipPath = templateClip;
         canvas.add(lineObj);
@@ -257,10 +296,24 @@ export function useSync(canvasRef, { layers, selectedLayerId, showGrid, template
         && layer.src.length > 0
         && !layer.src.includes('{{');
 
-      if (existingObj) {
-        existingObj.set({ ...props, clipPath: templateClip });
-        if (layer.type === 'text') {
+      if (layer.type === 'text') {
+        const textProps = {
+          ...controlProps(),
+          left: layer.x || 0,
+          top: layer.y || 0,
+          width: w,
+          originX: 'left',
+          originY: 'top',
+          angle: layer.rotation || 0,
+          opacity: (layer.opacity ?? 100) / 100,
+          selectable: !layer.locked,
+          evented: !layer.locked,
+          hasControls: !layer.locked
+        };
+        if (existingObj) {
           existingObj.set({
+            ...textProps,
+            clipPath: templateClip,
             text: layer.text || '',
             fill: layer.fill || '#ffffff',
             fontSize: layer.fontSize || 32,
@@ -269,36 +322,12 @@ export function useSync(canvasRef, { layers, selectedLayerId, showGrid, template
             charSpacing: (layer.letterSpacing || 0) * 10,
             fontFamily: layer.fontFamily || 'sans-serif',
             editable: false,
-            width: w,
-            height: h,
             scaleX: 1,
             scaleY: 1
           });
-        } else if (layer.type === 'rect') {
-          existingObj.set({ fill: rectFill(layer), width: w, height: h, scaleX: 1, scaleY: 1 });
-        } else if (isStaticImage && existingObj.data?.imgSrc !== layer.src) {
-          canvas.remove(existingObj);
-          delete existing[layer.id];
-          FabricImage.fromURL(layer.src, { crossOrigin: 'anonymous' }).then((img) => {
-            img.set({ ...props, clipPath: templateClip });
-            img.scaleX = w / (img.width || w);
-            img.scaleY = h / (img.height || h);
-            img.set('data', { layerId: layer.id, imgSrc: layer.src });
-            canvas.add(img);
-            canvas.requestRenderAll();
-          }).catch(() => {});
-        } else if (isStaticImage) {
-          existingObj.set({ width: w, height: h, scaleX: 1, scaleY: 1 });
         } else {
-          existingObj.set({ fill: makeImagePattern(), width: w, height: h, scaleX: 1, scaleY: 1 });
-        }
-      } else {
-        let obj;
-        if (layer.type === 'text') {
-          obj = new Textbox(layer.text || '', {
-            ...props,
-            width: w,
-            height: h,
+          const tb = new Textbox(layer.text || '', {
+            ...textProps,
             fill: layer.fill || '#ffffff',
             fontSize: layer.fontSize || 32,
             textAlign: layer.align || 'left',
@@ -307,18 +336,34 @@ export function useSync(canvasRef, { layers, selectedLayerId, showGrid, template
             fontFamily: layer.fontFamily || 'sans-serif',
             editable: false
           });
+          if (tb.controls?.mtr) tb.controls.mtr.offsetY = -30;
+          tb.set('data', { layerId: layer.id });
+          tb.clipPath = templateClip;
+          canvas.add(tb);
+        }
+        return;
+      }
+
+      if (existingObj) {
+        existingObj.set({ ...props, clipPath: templateClip });
+        if (layer.type === 'rect') {
+          existingObj.set({ fill: rectFill(layer), width: w, height: h, scaleX: 1, scaleY: 1 });
+        } else if (isStaticImage && existingObj.data?.imgSrc === layer.src) {
+          existingObj.set({ width: w, height: h, scaleX: 1, scaleY: 1 });
         } else if (isStaticImage) {
-          FabricImage.fromURL(layer.src, { crossOrigin: 'anonymous' }).then((img) => {
-            img.set({ ...props, clipPath: templateClip });
-            img.scaleX = w / (img.width || w);
-            img.scaleY = h / (img.height || h);
-            if (img.controls?.mtr) img.controls.mtr.offsetY = -30;
-            img.set('data', { layerId: layer.id, imgSrc: layer.src });
-            canvas.add(img);
-            canvas.requestRenderAll();
-          }).catch(() => {});
+          canvas.remove(existingObj);
+          delete existing[layer.id];
+          loadStaticImage(canvas, layer, props, templateClip, w, h);
+        } else {
+          existingObj.set({ fill: makeImagePattern(), width: w, height: h, scaleX: 1, scaleY: 1 });
+        }
+      } else {
+        if (isStaticImage) {
+          loadStaticImage(canvas, layer, props, templateClip, w, h);
           return;
-        } else if (layer.type === 'image' || layer.type === 'logo') {
+        }
+        let obj;
+        if (layer.type === 'image' || layer.type === 'logo') {
           obj = new Rect({ ...props, width: w, height: h, fill: makeImagePattern() });
         } else {
           obj = new Rect({ ...props, width: w, height: h, fill: rectFill(layer) });

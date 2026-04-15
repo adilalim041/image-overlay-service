@@ -26,16 +26,17 @@ export function useInteraction(canvasRef, { onSelectLayer, onLayerMove, onLayerR
       if (obj.type === 'line') {
         const orig = obj.data?.origLine;
         if (orig) {
-          const minX = Math.min(orig.x1, orig.x2);
-          const minY = Math.min(orig.y1, orig.y2);
-          const dx = Math.round((obj.left || 0) - minX);
-          const dy = Math.round((obj.top || 0) - minY);
-          onLayerMove?.(id, {
-            x1: orig.x1 + dx,
-            y1: orig.y1 + dy,
-            x2: orig.x2 + dx,
-            y2: orig.y2 + dy
-          });
+          const origMinX = Math.min(orig.x1, orig.x2);
+          const origMinY = Math.min(orig.y1, orig.y2);
+          const dx = (obj.left || 0) - origMinX;
+          const dy = (obj.top || 0) - origMinY;
+          const sx = obj.scaleX || 1;
+          const sy = obj.scaleY || 1;
+          const x1 = Math.round(origMinX + dx + (orig.x1 - origMinX) * sx);
+          const y1 = Math.round(origMinY + dy + (orig.y1 - origMinY) * sy);
+          const x2 = Math.round(origMinX + dx + (orig.x2 - origMinX) * sx);
+          const y2 = Math.round(origMinY + dy + (orig.y2 - origMinY) * sy);
+          onLayerMove?.(id, { x1, y1, x2, y2 });
         }
         setSizeTooltip(null);
         setRotationTooltip(null);
