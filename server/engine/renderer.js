@@ -182,12 +182,15 @@ function renderLineLayer(layer) {
   if (layer.fillType === "gradient" && layer.gradientFrom && layer.gradientTo) {
     const gradId = `grad-${id}`;
     const dir = layer.gradientDirection || "horizontal";
-    const coords = dir === "vertical"
-      ? 'x1="0%" y1="0%" x2="0%" y2="100%"'
-      : dir === "diagonal"
-        ? 'x1="0%" y1="0%" x2="100%" y2="100%"'
-        : 'x1="0%" y1="0%" x2="100%" y2="0%"';
-    defs = `<defs><linearGradient id="${gradId}" ${coords}><stop offset="0%" stop-color="${escapeXml(layer.gradientFrom)}" /><stop offset="100%" stop-color="${escapeXml(layer.gradientTo)}" /></linearGradient></defs>`;
+    const minX = Math.min(x1, x2);
+    const maxX = Math.max(x1, x2);
+    const minY = Math.min(y1, y2);
+    const maxY = Math.max(y1, y2);
+    let coords;
+    if (dir === "vertical") coords = `x1="${minX}" y1="${minY}" x2="${minX}" y2="${maxY}"`;
+    else if (dir === "diagonal") coords = `x1="${minX}" y1="${minY}" x2="${maxX}" y2="${maxY}"`;
+    else coords = `x1="${minX}" y1="${minY}" x2="${maxX}" y2="${minY}"`;
+    defs = `<defs><linearGradient id="${gradId}" gradientUnits="userSpaceOnUse" ${coords}><stop offset="0%" stop-color="${escapeXml(layer.gradientFrom)}" /><stop offset="100%" stop-color="${escapeXml(layer.gradientTo)}" /></linearGradient></defs>`;
     stroke = `url(#${gradId})`;
   }
 
