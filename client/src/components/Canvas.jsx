@@ -18,7 +18,8 @@ export default function Canvas({
   onSelectLayer,
   onLayerMove,
   onLayerResize,
-  onContextMenu
+  onContextMenu,
+  onAltDuplicate
 }) {
   const containerRef = useRef(null);
   const elementRef = useRef(null);
@@ -38,7 +39,8 @@ export default function Canvas({
     onSelectLayer,
     onLayerMove,
     onLayerResize,
-    onContextMenu
+    onContextMenu,
+    onAltDuplicate
   });
 
   return (

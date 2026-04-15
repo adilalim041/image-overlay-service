@@ -506,6 +506,7 @@ export default function EditorPage() {
             onLayerMove={(idToMove, changes) => updateLayer(idToMove, changes)}
             onLayerResize={onLayerResize}
             onContextMenu={(idForMenu, pos) => setMenu({ id: idForMenu, ...pos })}
+            onAltDuplicate={(idToClone) => duplicateLayerById(idToClone)}
           />
           <div className="glass-panel absolute bottom-3 left-3 flex items-center gap-1 rounded-lg p-1">
             <button title="Уменьшить масштаб" className="icon-btn" onClick={() => setZoom((z) => Math.max(0.1, Number((z - 0.1).toFixed(2))))}>-</button>

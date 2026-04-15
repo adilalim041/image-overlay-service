@@ -82,15 +82,19 @@ function layerSize(layer) {
 function loadStaticImage(canvas, layer, props, clipPath, w, h) {
   if (typeof window === 'undefined') return;
   const html = new window.Image();
+  html.crossOrigin = 'anonymous';
   html.onload = () => {
-    const fImg = new FabricImage(html, {
-      ...props,
-      clipPath,
-      scaleX: w / (html.naturalWidth || w),
-      scaleY: h / (html.naturalHeight || h)
-    });
-    delete fImg.width;
-    delete fImg.height;
+    const nw = html.naturalWidth || html.width || w;
+    const nh = html.naturalHeight || html.height || h;
+    const cleanProps = { ...props };
+    delete cleanProps.width;
+    delete cleanProps.height;
+    delete cleanProps.rx;
+    delete cleanProps.ry;
+    const fImg = new FabricImage(html, cleanProps);
+    fImg.scaleX = w / nw;
+    fImg.scaleY = h / nh;
+    fImg.clipPath = clipPath;
     if (fImg.controls?.mtr) fImg.controls.mtr.offsetY = -30;
     fImg.set('data', { layerId: layer.id, imgSrc: layer.src });
     canvas.add(fImg);
@@ -109,6 +113,22 @@ function loadStaticImage(canvas, layer, props, clipPath, w, h) {
     canvas.requestRenderAll();
   };
   html.src = layer.src;
+}
+
+function lineGradient(layer, x1, y1, x2, y2) {
+  if (layer.fillType !== 'gradient' || !layer.gradientFrom || !layer.gradientTo) return null;
+  const dir = layer.gradientDirection || 'horizontal';
+  return new Gradient({
+    type: 'linear',
+    gradientUnits: 'pixels',
+    coords: dir === 'vertical'
+      ? { x1: 0, y1: Math.min(y1, y2), x2: 0, y2: Math.max(y1, y2) }
+      : { x1: Math.min(x1, x2), y1: 0, x2: Math.max(x1, x2), y2: 0 },
+    colorStops: [
+      { offset: 0, color: layer.gradientFrom },
+      { offset: 1, color: layer.gradientTo }
+    ]
+  });
 }
 
 function lineDashArray(layer) {
@@ -236,8 +256,10 @@ export function useSync(canvasRef, { layers, selectedLayerId, showGrid, template
         const y1 = Number(layer.y1) || 0;
         const x2 = Number(layer.x2) || 100;
         const y2 = Number(layer.y2) || 0;
+        const isVertical = Math.abs(y2 - y1) > Math.abs(x2 - x1);
+        const stroke = lineGradient(layer, x1, y1, x2, y2) || (layer.stroke || '#FFFFFF');
         const lineProps = {
-          stroke: layer.stroke || '#FFFFFF',
+          stroke,
           strokeWidth: Number(layer.strokeWidth) || 2,
           strokeLineCap: layer.lineCap || 'butt',
           strokeDashArray: lineDashArray(layer),
@@ -248,20 +270,26 @@ export function useSync(canvasRef, { layers, selectedLayerId, showGrid, template
           hasBorders: true,
           borderColor: '#E63946',
           borderDashArray: [6, 3],
-          padding: 4,
+          padding: 6,
           cornerColor: '#ffffff',
           cornerStrokeColor: '#1a1a1a',
-          cornerSize: 10,
+          cornerSize: 12,
           cornerStyle: 'circle',
           transparentCorners: false,
-          lockScalingFlip: true
+          lockScalingFlip: true,
+          lockScalingY: !isVertical,
+          lockScalingX: isVertical
         };
         const existingObj = existing[layer.id];
         if (existingObj && existingObj.type === 'line') {
           canvas.remove(existingObj);
         }
         const lineObj = new Line([x1, y1, x2, y2], lineProps);
-        lineObj.setControlsVisibility({ tl: true, tr: true, bl: true, br: true, ml: true, mr: true, mt: false, mb: false, mtr: false });
+        if (isVertical) {
+          lineObj.setControlsVisibility({ tl: false, tr: false, bl: false, br: false, ml: false, mr: false, mt: true, mb: true, mtr: false });
+        } else {
+          lineObj.setControlsVisibility({ tl: false, tr: false, bl: false, br: false, ml: true, mr: true, mt: false, mb: false, mtr: false });
+        }
         lineObj.set('data', { layerId: layer.id, origLine: { x1, y1, x2, y2 } });
         lineObj.clipPath = templateClip;
         canvas.add(lineObj);

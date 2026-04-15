@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-export function useInteraction(canvasRef, { onSelectLayer, onLayerMove, onLayerResize, onContextMenu }) {
+export function useInteraction(canvasRef, { onSelectLayer, onLayerMove, onLayerResize, onContextMenu, onAltDuplicate }) {
   const [sizeTooltip, setSizeTooltip] = useState(null);
   const [rotationTooltip, setRotationTooltip] = useState(null);
 
@@ -11,6 +11,11 @@ export function useInteraction(canvasRef, { onSelectLayer, onLayerMove, onLayerR
     const onMouseDown = (opt) => {
       if (canvas.__isPanning) return;
       const id = opt.target?.data?.layerId || null;
+      if (id && opt.e.altKey && opt.e.button !== 2) {
+        opt.e.preventDefault();
+        onAltDuplicate?.(id);
+        return;
+      }
       if (id) onSelectLayer?.(id);
       if (opt.e.button === 2 && id) {
         opt.e.preventDefault();
@@ -104,7 +109,7 @@ export function useInteraction(canvasRef, { onSelectLayer, onLayerMove, onLayerR
       canvas.off('object:rotating', onRotating);
       canvas.off('mouse:up', onMouseUp);
     };
-  }, [canvasRef, onSelectLayer, onLayerMove, onLayerResize, onContextMenu]);
+  }, [canvasRef, onSelectLayer, onLayerMove, onLayerResize, onContextMenu, onAltDuplicate]);
 
   return { sizeTooltip, rotationTooltip };
 }
