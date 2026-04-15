@@ -130,17 +130,27 @@ function hexWithAlphaToRgba(color) {
 function lineGradient(layer, x1, y1, x2, y2) {
   if (layer.fillType !== 'gradient' || !layer.gradientFrom || !layer.gradientTo) return null;
   const dir = layer.gradientDirection || 'horizontal';
-  const minX = Math.min(x1, x2);
-  const maxX = Math.max(x1, x2);
-  const minY = Math.min(y1, y2);
-  const maxY = Math.max(y1, y2);
+  // Direction of the line itself (which endpoint is left/top)
+  const leftFirst = x1 <= x2;
+  const topFirst = y1 <= y2;
   let coords;
-  if (dir === 'vertical') coords = { x1: minX, y1: minY, x2: minX, y2: maxY };
-  else if (dir === 'diagonal') coords = { x1: minX, y1: minY, x2: maxX, y2: maxY };
-  else coords = { x1: minX, y1: minY, x2: maxX, y2: minY };
+  if (dir === 'vertical') {
+    coords = { x1: 0, y1: topFirst ? 0 : 1, x2: 0, y2: topFirst ? 1 : 0 };
+  } else if (dir === 'diagonal') {
+    coords = {
+      x1: leftFirst ? 0 : 1,
+      y1: topFirst ? 0 : 1,
+      x2: leftFirst ? 1 : 0,
+      y2: topFirst ? 1 : 0
+    };
+  } else {
+    coords = { x1: leftFirst ? 0 : 1, y1: 0, x2: leftFirst ? 1 : 0, y2: 0 };
+  }
+  // Suppress unused warnings if x1/y1/x2/y2 aren't referenced above
+  void x1; void y1; void x2; void y2;
   return new Gradient({
     type: 'linear',
-    gradientUnits: 'pixels',
+    gradientUnits: 'percentage',
     coords,
     colorStops: [
       { offset: 0, color: hexWithAlphaToRgba(layer.gradientFrom) },
