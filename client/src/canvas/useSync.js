@@ -269,7 +269,6 @@ export function useSync(canvasRef, { layers, selectedLayerId, showGrid, template
         const y1 = Number(layer.y1) || 0;
         const x2 = Number(layer.x2) || 100;
         const y2 = Number(layer.y2) || 0;
-        const isVertical = Math.abs(y2 - y1) > Math.abs(x2 - x1);
         const stroke = lineGradient(layer, x1, y1, x2, y2) || (layer.stroke || '#FFFFFF');
         const lineProps = {
           stroke,
@@ -289,16 +288,20 @@ export function useSync(canvasRef, { layers, selectedLayerId, showGrid, template
           lockScalingX: true,
           lockScalingY: true
         };
-        // isVertical reserved for future per-axis logic
-        void isVertical;
         const existingObj = existing[layer.id];
         if (existingObj && existingObj.type === 'line') {
-          canvas.remove(existingObj);
+          // Update in place — no remove+recreate, avoids per-frame reflow
+          existingObj.set(lineProps);
+          existingObj.set({ x1, y1, x2, y2 });
+          existingObj.set('data', { layerId: layer.id, origLine: { x1, y1, x2, y2 } });
+          existingObj.setCoords();
+        } else {
+          if (existingObj) canvas.remove(existingObj);
+          const lineObj = new Line([x1, y1, x2, y2], lineProps);
+          lineObj.set('data', { layerId: layer.id, origLine: { x1, y1, x2, y2 } });
+          lineObj.clipPath = templateClip;
+          canvas.add(lineObj);
         }
-        const lineObj = new Line([x1, y1, x2, y2], lineProps);
-        lineObj.set('data', { layerId: layer.id, origLine: { x1, y1, x2, y2 } });
-        lineObj.clipPath = templateClip;
-        canvas.add(lineObj);
         return;
       }
 

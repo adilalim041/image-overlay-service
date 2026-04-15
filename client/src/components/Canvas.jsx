@@ -50,11 +50,28 @@ export default function Canvas({
   useEffect(() => {
     const c = canvasRef.current;
     if (!c) return;
-    const sync = () => setVt([...(c.viewportTransform || [1, 0, 0, 1, 0, 0])]);
+    let raf = null;
+    const sync = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = null;
+        const next = c.viewportTransform || [1, 0, 0, 1, 0, 0];
+        setVt((prev) => {
+          if (prev[0] === next[0] && prev[4] === next[4] && prev[5] === next[5]) return prev;
+          return [...next];
+        });
+      });
+    };
     sync();
-    c.on('after:render', sync);
-    return () => c.off('after:render', sync);
-  }, [canvasRef, zoom, fitTrigger]);
+    // Only listen to events that actually change the viewport transform
+    c.on('mouse:wheel', sync);
+    c.on('after:transform', sync);
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      c.off('mouse:wheel', sync);
+      c.off('after:transform', sync);
+    };
+  }, [canvasRef, zoom, fitTrigger, templateWidth, templateHeight]);
 
   const selectedLine = layers.find((l) => l.id === selectedLayerId && l.type === 'line' && !l.locked);
 
