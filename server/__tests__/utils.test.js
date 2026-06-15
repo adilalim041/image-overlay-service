@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { escapeXml, substituteVars } from '../engine/utils.js';
+import {
+    assertSafeImageUrl,
+    escapeXml,
+    isPrivateAddress,
+    resolvePublicAddresses,
+    substituteVars
+} from '../engine/utils.js';
 
 describe('escapeXml', () => {
     it('escapes special characters', () => {
@@ -39,5 +45,48 @@ describe('substituteVars', () => {
 
     it('trims variable names', () => {
         expect(substituteVars('{{ name }}', { name: 'test' })).toBe('test');
+    });
+});
+
+describe('image URL safety', () => {
+    const resolverFor = (addresses) => async () => addresses;
+
+    it('blocks localhost hostnames', async () => {
+        await expect(resolvePublicAddresses('localhost', resolverFor([{ address: '127.0.0.1', family: 4 }]))).rejects.toThrow('Blocked private image host');
+    });
+
+    it('blocks private IPv4 addresses', () => {
+        expect(isPrivateAddress('127.0.0.1')).toBe(true);
+        expect(isPrivateAddress('10.1.2.3')).toBe(true);
+        expect(isPrivateAddress('172.16.0.1')).toBe(true);
+        expect(isPrivateAddress('192.168.1.1')).toBe(true);
+        expect(isPrivateAddress('169.254.10.10')).toBe(true);
+    });
+
+    it('allows public IPv4 addresses', () => {
+        expect(isPrivateAddress('8.8.8.8')).toBe(false);
+    });
+
+    it('blocks hostnames that resolve to private addresses', async () => {
+        await expect(resolvePublicAddresses(
+            'example.com',
+            resolverFor([{ address: '192.168.1.10', family: 4 }])
+        )).rejects.toThrow('Blocked private image host');
+    });
+
+    it('requires http or https URLs', async () => {
+        await expect(assertSafeImageUrl('file:///etc/passwd')).rejects.toThrow('Unsupported image URL protocol');
+    });
+
+    it('rejects URL credentials', async () => {
+        await expect(assertSafeImageUrl('https://user:pass@example.com/a.png')).rejects.toThrow('Image URL credentials are not allowed');
+    });
+
+    it('returns resolved public addresses for safe URLs', async () => {
+        const result = await assertSafeImageUrl('https://cdn.example.com/a.png', {
+            resolver: resolverFor([{ address: '93.184.216.34', family: 4 }])
+        });
+        expect(result.parsed.hostname).toBe('cdn.example.com');
+        expect(result.addresses).toEqual([{ address: '93.184.216.34', family: 4 }]);
     });
 });

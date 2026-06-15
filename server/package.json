@@ -6,7 +6,12 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "template:schema": "node tools/template-agent.mjs schema",
+    "template:validate": "node tools/template-agent.mjs validate",
+    "template:inspect": "node tools/template-agent.mjs inspect",
+    "template:render": "node tools/template-agent.mjs render",
+    "template:save-local": "node tools/template-agent.mjs save-local"
   },
   "dependencies": {
     "@sentry/node": "^10.46.0",

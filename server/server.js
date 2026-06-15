@@ -15,6 +15,7 @@ import rateLimit from "express-rate-limit";
 import templatesRouter from "./routes/templates.js";
 import renderRouter from "./routes/render.js";
 import { listFonts } from "./engine/fonts.js";
+import { assertTemplateAuthConfigured, authMiddleware } from "./middleware/auth.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -22,21 +23,41 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const clientDistPath = process.env.CLIENT_DIST_PATH || path.resolve(__dirname, "../client/dist");
 
+try {
+  assertTemplateAuthConfigured();
+} catch (error) {
+  console.error(error.message);
+  process.exit(1);
+}
+
 // CORS — restrict to known origins
 const allowedOrigins = (process.env.CORS_ORIGINS || '')
   .split(',')
   .map(s => s.trim())
   .filter(Boolean);
+const localhostOrigin = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 
-app.use(cors(allowedOrigins.length > 0 ? {
+app.use(cors({
   origin: (origin, cb) => {
     // Allow requests with no origin (server-to-server, curl, etc.)
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.length > 0) {
+      if (allowedOrigins.includes(origin)) return cb(null, true);
+      return cb(new Error('CORS not allowed'));
+    }
+    if (localhostOrigin.test(origin)) return cb(null, true);
     cb(new Error('CORS not allowed'));
   }
-} : undefined));
+}));
 
 app.use(express.json({ limit: "10mb" }));
+
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", service: "AdilFlow", version: "2.0.0" });
+});
+
+app.use(authMiddleware);
+
 app.use("/api/render", rateLimit({ windowMs: 60_000, max: 60, message: { error: "Too many requests" } }));
 app.use("/api/templates", rateLimit({ windowMs: 60_000, max: 120, message: { error: "Too many requests" } }));
 
@@ -59,10 +80,6 @@ app.post("/api/render-batch/zip", (req, res, next) => {
 app.post("/api/render-batch-zip", (req, res, next) => {
   req.url = "/batch/zip";
   return renderRouter(req, res, next);
-});
-
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", service: "AdilFlow", version: "2.0.0" });
 });
 
 app.use(express.static(clientDistPath));

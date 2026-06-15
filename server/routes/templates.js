@@ -13,6 +13,7 @@ import { randomUUID } from "node:crypto";
 import { getFont } from "../engine/fonts.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { getSupabase, isSupabaseConfigured } from "../storage/supabase.js";
+import { TEMPLATE_AGENT_CONTRACT, validateTemplate } from "../agent/templateContract.js";
 
 const router = Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -278,6 +279,15 @@ async function buildUniqueSlug(base, excludeId = "") {
 // ROUTES
 // ═══════════════════════════════════════
 
+router.get("/agent/schema", (req, res) => {
+  return res.json({ success: true, data: TEMPLATE_AGENT_CONTRACT });
+});
+
+router.post("/agent/validate", authMiddleware, (req, res) => {
+  const validation = validateTemplate(req.body || {});
+  return res.status(validation.valid ? 200 : 400).json({ success: validation.valid, data: validation });
+});
+
 router.get("/", async (req, res) => {
   try {
     const templates = await storageGetAll();
@@ -352,6 +362,17 @@ router.get("/:id", async (req, res) => {
 router.post("/", authMiddleware, async (req, res) => {
   try {
     const body = req.body || {};
+    const validation = validateTemplate({
+      ...body,
+      id: body.id || "generated-template-id",
+      name: body.name || "Untitled Template",
+      width: body.width || 1080,
+      height: body.height || 1350,
+      layers: body.layers || []
+    });
+    if (!validation.valid) {
+      return res.status(400).json({ success: false, error: "Template validation failed", details: validation.issues });
+    }
     const id = body.id || randomUUID().slice(0, 8);
     const slug = await buildUniqueSlug(body.slug || body.name || id, id);
     const template = {
@@ -386,6 +407,10 @@ router.put("/:id", authMiddleware, async (req, res) => {
       slug: nextSlug,
       updatedAt: new Date().toISOString()
     };
+    const validation = validateTemplate(template);
+    if (!validation.valid) {
+      return res.status(400).json({ success: false, error: "Template validation failed", details: validation.issues });
+    }
     const saved = await storageSave(template);
     return res.json({ success: true, data: saved });
   } catch (error) {
