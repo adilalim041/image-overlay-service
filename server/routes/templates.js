@@ -267,6 +267,44 @@ function readTemplateSafe(fileName) {
   }
 }
 
+async function syncBundledTemplates() {
+  if (!isSupabaseConfigured()) return;
+
+  const bundled = readAllTemplateFiles()
+    .map((fileName) => readTemplateSafe(fileName))
+    .filter(Boolean);
+
+  let imported = 0;
+  for (const template of bundled) {
+    const templateSlug = slugify(template.slug || template.name || template.id);
+    const validation = validateTemplate(template);
+    if (!validation.valid) {
+      console.warn(`[templates] Skipping invalid bundled template ${template.id || template.name || "unknown"}`);
+      continue;
+    }
+
+    const existingById = await storageGetById(template.id);
+    const existingBySlug = templateSlug ? await storageGetBySlug(templateSlug) : null;
+    if (existingById || existingBySlug) continue;
+
+    await storageSave({
+      ...template,
+      slug: templateSlug,
+      createdAt: template.createdAt || new Date().toISOString(),
+      updatedAt: template.updatedAt || new Date().toISOString()
+    });
+    imported += 1;
+  }
+
+  if (imported > 0) {
+    console.log(`[templates] Imported ${imported} bundled template(s) into Supabase`);
+  }
+}
+
+syncBundledTemplates().catch((error) => {
+  console.warn(`[templates] Bundled template sync skipped: ${error.message}`);
+});
+
 async function buildUniqueSlug(base, excludeId = "") {
   const candidate = slugify(base) || "template";
   if (!(await storageSlugExists(candidate, excludeId))) return candidate;
