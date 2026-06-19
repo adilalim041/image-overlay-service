@@ -177,7 +177,7 @@ function getSingleTemplateVariable(value) {
   return match ? match[1].trim() : null;
 }
 
-function buildTextBindings(template) {
+export function buildTextBindings(template) {
   return (template?.layers || [])
     .filter((layer) => layer?.type === "text")
     .map((layer) => {
@@ -192,20 +192,27 @@ function buildTextBindings(template) {
         fontSize: Number(layer.fontSize) || 32,
         fontFamily: layer.fontFamily || "regular",
         lineHeight: Number(layer.lineHeight) || 1.2,
-        align: layer.align || "left"
+        align: layer.align || "left",
+        clip: layer.clip === true || layer.clipText === true || layer.enforceHeight === true,
+        maxLines: Number.isFinite(Number(layer.maxLines)) && Number(layer.maxLines) > 0
+          ? Math.floor(Number(layer.maxLines))
+          : null
       };
     })
     .filter(Boolean);
 }
 
-function analyzeTextBinding(binding, value) {
+export function analyzeTextBinding(binding, value) {
   const font = getFont(binding.fontFamily);
   const text = String(value || "").trim();
   const lines = wrapText(text, font, binding.fontSize, binding.width || 960);
   const lineHeightPx = binding.fontSize * (binding.lineHeight || 1.2);
   const textHeight = lines.length ? binding.fontSize + (lines.length - 1) * lineHeightPx : binding.fontSize;
-  const maxLines = Math.max(1, Math.floor(((binding.height || binding.fontSize) - binding.fontSize) / lineHeightPx) + 1);
-  const overflows = !!text && textHeight > (binding.height || binding.fontSize);
+  const heightMaxLines = Math.max(1, Math.floor(((binding.height || binding.fontSize) - binding.fontSize) / lineHeightPx) + 1);
+  const maxLines = binding.maxLines || heightMaxLines;
+  const heightOverflow = !!text && textHeight > (binding.height || binding.fontSize);
+  const lineOverflow = !!text && !!binding.maxLines && lines.length > binding.maxLines;
+  const strictHeightOverflow = binding.clip && heightOverflow;
 
   return {
     layerId: binding.layerId,
@@ -218,8 +225,12 @@ function analyzeTextBinding(binding, value) {
     lineHeight: binding.lineHeight,
     lineCount: lines.length,
     maxLines,
+    declaredMaxLines: binding.maxLines,
     textHeight: Math.round(textHeight),
-    fits: !overflows,
+    heightOverflow,
+    lineOverflow,
+    strictHeight: binding.clip,
+    fits: !(lineOverflow || strictHeightOverflow),
     lines
   };
 }
